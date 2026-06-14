@@ -139,7 +139,7 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 | Duplicate Stream delivery | second Ledger insert is a no-op | `ON CONFLICT DO NOTHING` on natural key |
 | Double-click / retry buy | `ALREADY_PURCHASED`, not an error | buyer SET checked inside the Gate |
 
-> The same diagrams are mirrored in [`../docs/architecture.md`](../docs/architecture.md).
+> The same diagrams are mirrored in [`docs/architecture.md`](docs/architecture.md).
 
 ## Why this holds up
 

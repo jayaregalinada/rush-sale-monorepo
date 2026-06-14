@@ -4,7 +4,10 @@ services:
     # AOF on, fsync every second — authoritative live state with ≤1s crash window (ADR-0001).
     command: redis-server --appendonly yes --appendfsync everysec
     ports:
-      - "6379:6379"
+      # Bound to IPv4 loopback so `localhost` resolves cleanly on macOS (the default
+      # publish also binds [::], whose IPv6 loopback resets under Docker Desktop/OrbStack).
+      # Loopback-only keeps the port off the LAN — correct for local-dev.
+      - "127.0.0.1:6379:6379"
     volumes:
       # Bind mount: AOF + RDB live under ./data/redis in the project, not a named volume.
       - ./data/redis:/data
@@ -21,7 +24,7 @@ services:
       POSTGRES_PASSWORD: rush
       POSTGRES_DB: rush_sale
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       # Bind mount: the cluster data dir lives under ./data/postgres in the project.
       - ./data/postgres:/var/lib/postgresql/data
@@ -66,7 +69,7 @@ services:
       SEED_SALE_STARTS_AT: 2026-06-13T00:00:00Z
       SEED_SALE_ENDS_AT: 2026-12-31T23:59:59Z
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       redis:
         condition: service_healthy
@@ -98,7 +101,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     depends_on:
       - api
 
@@ -114,7 +117,7 @@ services:
     environment:
       PGWEB_DATABASE_URL: postgres://rush:rush@postgres:5432/rush_sale?sslmode=disable
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,7 +131,7 @@ services:
       REDIS_HOSTS: local:redis:6379
     # The image always serves on 8081 internally; publish it on host 8082.
     ports:
-      - "8082:8081"
+      - "127.0.0.1:8082:8081"
     depends_on:
       redis:
         condition: service_healthy

@@ -7,6 +7,7 @@ import { reservationTable } from '../db/reservation-table';
 import type { Sale } from '../db/sale';
 import { saleTable } from '../db/sale-table';
 import { Gate } from '../redis/gate';
+import type { SaleDisplayStatus } from './sale-display-status';
 import type { SaleStatus } from './sale-status';
 
 /** Reservations already recorded in the Ledger for a sale — the rehydration input. */
@@ -58,6 +59,21 @@ export class SalesService {
     }
 
     return 'ACTIVE';
+  }
+
+  /**
+   * Status as the storefront should see it: the lifecycle state, except ACTIVE collapses
+   * to SOLD_OUT once live stock is exhausted. `remaining` is the live Gate value passed in
+   * by the caller (null = unseeded), so this stays sync and adds no extra Redis round trip.
+   */
+  displayStatusOf(sale: Sale, remaining: number | null): SaleDisplayStatus {
+    const lifecycle = this.statusOf(sale);
+
+    if (lifecycle === 'ACTIVE' && remaining !== null && remaining <= 0) {
+      return 'SOLD_OUT';
+    }
+
+    return lifecycle;
   }
 
   /** Live remaining stock; null if the sale is not seeded yet. */

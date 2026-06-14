@@ -24,12 +24,14 @@ export class SalesController {
       throw new NotFoundException(`unknown sale: ${id}`);
     }
 
+    const remaining = await this._sales.remaining(sale.id);
+
     return {
       saleId: sale.id,
       product: sale.product,
-      status: this._sales.statusOf(sale),
+      status: this._sales.displayStatusOf(sale, remaining),
       initialStock: sale.initialStock,
-      remaining: await this._sales.remaining(sale.id),
+      remaining,
       startsAt: sale.startsAt,
       endsAt: sale.endsAt,
     };

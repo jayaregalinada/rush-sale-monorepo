@@ -29,6 +29,79 @@ services:
       timeout: 3s
       retries: 10
 
+  # --- Application tier (profile "app") ----------------------------------------
+  # Excluded from `docker compose up` (infra-only) unless the profile is active:
+  #   docker compose --profile app up -d --build      (or: pnpm up)
+
+  # One-shot: push the Drizzle schema, then exit. Uses the builder stage because
+  # drizzle-kit is a dev dependency and is absent from the slim runtime image.
+  migrate:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    command: pnpm --filter @rush-sale/api db:push
+    environment:
+      DATABASE_URL: postgres://rush:rush@postgres:5432/rush_sale
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: rush-sale-api:local
+    environment: &api-env
+      PORT: "3000"
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://rush:rush@postgres:5432/rush_sale
+      SEED_SALE_ID: launch-2026
+      SEED_SALE_PRODUCT: Limited Sneaker Drop
+      SEED_SALE_STOCK: "1000"
+      SEED_SALE_STARTS_AT: 2026-06-13T00:00:00Z
+      SEED_SALE_ENDS_AT: 2026-12-31T23:59:59Z
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Same image as the api, different entrypoint — drains the Stream into the Ledger.
+  worker:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: rush-sale-api:local
+    command: node dist/worker.js
+    environment: *api-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
 volumes:
   redis-data:
   pg-data:

@@ -168,17 +168,36 @@ apps/
 
 ## Prerequisites
 
-- Node ≥ 22 (developed on 26), `pnpm` (`corepack enable`)
-- Docker (Redis + Postgres via compose)
+- Docker (everything else runs in containers)
+- For local (non-container) dev: Node ≥ 22 (developed on 26) + `pnpm`
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) for the load scenarios
 
-## Run it
+## Run it — fully containerized (one command)
+
+```bash
+pnpm up        # docker compose --profile app up -d --build
+```
+
+This builds and starts the whole stack: Redis, Postgres, a one-shot **migrate** (pushes the
+Drizzle schema, then exits), the **API** (:3000, seeds `launch-2026` on boot), the **worker**
+(Stream → Ledger), and the **web** SPA on **http://localhost:5173** (nginx). `depends_on`
+health/`completed_successfully` gates ordering, so the API only starts once the schema is in
+place. Tear down with:
+
+```bash
+pnpm down      # stop + remove the app containers (keeps Redis/Postgres volumes)
+```
+
+The app services live behind a Compose `app` profile, so `pnpm infra:up` (below) still brings
+up Redis + Postgres only.
+
+## Run it — local dev (hot reload)
 
 ```bash
 pnpm install
 cp .env.example .env          # localhost defaults match docker-compose
 
-pnpm infra:up                 # Redis + Postgres
+pnpm infra:up                 # Redis + Postgres only
 pnpm --filter @rush-sale/api db:push   # create tables
 
 # two processes, two terminals:

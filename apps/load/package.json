@@ -1,0 +1,12 @@
+{
+  "name": "@rush-sale/load",
+  "version": "0.1.0",
+  "private": true,
+  "description": "k6 stress + correctness scenarios for Rush Sale",
+  "scripts": {
+    "herd": "k6 run scenarios/thundering-herd.js",
+    "one-per-user": "k6 run scenarios/one-per-user.js",
+    "window": "k6 run scenarios/sale-window.js",
+    "fault-redis": "k6 run scenarios/fault-redis.js"
+  }
+}

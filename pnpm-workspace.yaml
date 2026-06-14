@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+
+# Single source of truth for shared dep versions across the workspace.
+catalog:
+  typescript: 6.0.3
+  vitest: 4.1.8
+  "@types/node": 24.7.0

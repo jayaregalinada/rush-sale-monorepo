@@ -1,0 +1,47 @@
+{
+  "name": "@rush-sale/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/main.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "start": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "vitest run --project unit",
+    "test:int": "vitest run --project integration",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.26",
+    "@nestjs/config": "4.0.2",
+    "@nestjs/core": "11.1.26",
+    "@nestjs/platform-fastify": "11.1.26",
+    "@nestjs/terminus": "11.1.1",
+    "drizzle-orm": "0.45.2",
+    "fastify": "5.8.5",
+    "ioredis": "5.11.1",
+    "nestjs-pino": "4.6.1",
+    "pg": "8.21.0",
+    "pino": "10.3.1",
+    "pino-http": "11.0.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.1.13"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.0.2",
+    "@testcontainers/redis": "12.0.2",
+    "@types/node": "catalog:",
+    "@types/pg": "8.15.6",
+    "drizzle-kit": "0.31.10",
+    "testcontainers": "12.0.2",
+    "tsx": "4.20.6",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

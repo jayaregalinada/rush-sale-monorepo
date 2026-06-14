@@ -1,0 +1,34 @@
+services:
+  redis:
+    image: redis:7-alpine
+    # AOF on, fsync every second — authoritative live state with ≤1s crash window (ADR-0001).
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rush
+      POSTGRES_PASSWORD: rush
+      POSTGRES_DB: rush_sale
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rush -d rush_sale"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redis-data:
+  pg-data:

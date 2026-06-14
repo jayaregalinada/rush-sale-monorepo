@@ -153,6 +153,29 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 | Total Redis state loss | Rehydrate on boot: `remaining = initial_stock − COUNT(reservations)`, buyer HASH rebuilt |
 | Crash window | AOF `everysec` loses ≤1s; the Ledger backstops a cold rebuild so it can't oversell |
 
+## Scaling & bottlenecks
+
+Each tier scales on its own lever; the honest ceiling is the **single Redis node**, and the
+key layout makes the fix a config change, not a rewrite.
+
+| Tier | Scale lever | Ceiling / bottleneck |
+|---|---|---|
+| API · Edge proxy | stateless → add replicas | CPU per request only |
+| Worker | competing-consumer group → add consumers | drain rate vs. Stream arrival rate |
+| **Redis Gate** | one node, single-threaded | **~10⁵ ops/s + it's a SPOF** |
+| Postgres | off the hot path | worker write throughput (never on the buy path) |
+
+**The single-Redis story, honestly.** One node is both the throughput ceiling and a single
+point of failure — but every key is namespaced `sale:{id}:*` and each sale owns its Stream, so
+**sharding by `saleId` across a Redis Cluster** spreads concurrent sales with zero Gate change.
+A single hotter-than-one-node sale is the single-product limit by design (lever: a bigger box,
+or partition the stock counter — deferred per ADR-0001). HA comes from Sentinel / managed Redis;
+AOF + the Ledger rebuild correct live state on failover or cold start.
+
+Full treatment — concurrency proof, per-tier mitigations, and a load runbook — in
+[`docs/architecture.md`](docs/architecture.md#scaling--bottlenecks) and
+[`docs/troubleshooting.md`](docs/troubleshooting.md#performance--load-symptom--bottleneck--mitigation).
+
 ## Stack
 
 TypeScript · Turborepo + pnpm · NestJS on the **Fastify** adapter · **ioredis**

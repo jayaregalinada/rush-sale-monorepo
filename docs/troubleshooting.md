@@ -119,6 +119,38 @@ The scenarios encode invariants as `abortOnFail` thresholds (e.g. `outcome_succe
 An instant abort usually means the sale is **already sold out or fully claimed** from a
 previous run — reset state (see *Quick reset*) and re-run.
 
+## Performance & load: symptom → bottleneck → mitigation
+
+A runbook for behaviour under stress. The architecture's scaling levers are in
+[architecture.md](./architecture.md#scaling--bottlenecks); this is how to *operate* them.
+
+| Symptom | Likely bottleneck | Mitigation |
+|---|---|---|
+| Buy latency climbs under load, Redis CPU near 100% | single Redis thread saturated | scale Redis vertically (faster box); for many concurrent sales, shard by `saleId` across Redis Cluster |
+| Postgres rows lag far behind successful buys | worker drain rate < arrival rate | add worker replicas (competing consumers); raise `BATCH`; check Postgres write throughput |
+| Redis memory growing during a long, hot sale | Stream never trimmed — acked entries linger | `XTRIM sale:{id}:reservations MINID <id>` after the backlog drains, or add approx `MAXLEN` to `XADD` |
+| API replicas at high CPU, Redis fine | API tier under-provisioned | add API replicas behind the proxy (stateless — safe to scale freely) |
+| Random/bogus sale ids spike DB reads | negative cache too small or churning | raise `UNKNOWN_SALE_CACHE_CAPACITY`; front the edge with per-IP rate limiting |
+| Many `503 NOT_READY` right after deploy | sales not seeded yet on a fresh node | expected during boot — node rehydrates from the Ledger; gate traffic until `/ready` passes |
+
+**Measure before you tune.** Inspect the live pressure points:
+
+```bash
+# Stream backlog (pending = un-acked work the worker still owes)
+docker compose exec redis redis-cli XINFO GROUPS sale:launch-2026:reservations
+docker compose exec redis redis-cli XLEN sale:launch-2026:reservations
+
+# Redis throughput / memory
+docker compose exec redis redis-cli INFO stats | grep instantaneous_ops_per_sec
+docker compose exec redis redis-cli INFO memory | grep used_memory_human
+
+# Reproduce load (scenarios live in apps/load/scenarios/)
+k6 run apps/load/scenarios/thundering-herd.js
+```
+
+A growing **pending** count (not just `XLEN`) is the true backpressure signal: it means the
+worker is behind, *not* that selling is at risk — the Gate is unaffected.
+
 ## `pnpm lint` reports unexpected errors
 
 Lint + format run through a single root Biome config (`biome.json`). Apply the safe fixes:

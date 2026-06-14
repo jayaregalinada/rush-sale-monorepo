@@ -14,7 +14,10 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(Logger));
-  app.enableCors();
+  // No CORS: the SPA is served same-origin and reaches the API through the /api proxy
+  // (nginx in containers, Vite in dev), so the browser never makes a cross-origin call.
+  // Enabling wide-open CORS would only add needless surface. Non-browser clients (curl,
+  // server-to-server) ignore CORS entirely, so they are unaffected.
   app.enableShutdownHooks();
 
   await app.listen(env.PORT, LISTEN_HOST);

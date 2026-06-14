@@ -17,7 +17,9 @@
     "up": "docker compose --profile app up -d --build",
     "down": "docker compose --profile app down",
     "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down -v"
+    "infra:down": "docker compose down",
+    "tools:up": "docker compose --profile tools up -d",
+    "tools:down": "docker compose --profile tools down"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.0",

@@ -6,7 +6,8 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      # Bind mount: AOF + RDB live under ./data/redis in the project, not a named volume.
+      - ./data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -22,7 +23,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      # Bind mount: the cluster data dir lives under ./data/postgres in the project.
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rush -d rush_sale"]
       interval: 2s
@@ -102,6 +104,32 @@ services:
     depends_on:
       - api
 
-volumes:
-  redis-data:
-  pg-data:
+  # --- Admin UIs (profile "tools") ---------------------------------------------
+  # Inspect the live database + cache. Excluded from the default/app stacks:
+  #   docker compose --profile tools up -d            (or: pnpm tools:up)
+  # Both auto-connect, so there is no login/registration step.
+
+  # Postgres web UI — http://localhost:8081
+  pgweb:
+    profiles: ["tools"]
+    image: sosedoff/pgweb:0.16.2
+    environment:
+      PGWEB_DATABASE_URL: postgres://rush:rush@postgres:5432/rush_sale?sslmode=disable
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Redis web UI — http://localhost:8082
+  redis-commander:
+    profiles: ["tools"]
+    image: rediscommander/redis-commander:latest
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    # The image always serves on 8081 internally; publish it on host 8082.
+    ports:
+      - "8082:8081"
+    depends_on:
+      redis:
+        condition: service_healthy

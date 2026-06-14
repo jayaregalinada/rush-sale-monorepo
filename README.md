@@ -185,6 +185,8 @@ These TCP ports must be free on the host (the stack publishes them):
 | `5173` | Web SPA |
 | `5432` | Postgres |
 | `6379` | Redis |
+| `8081` | pgweb — Postgres admin UI (only with `pnpm tools:up`) |
+| `8082` | redis-commander — Redis admin UI (only with `pnpm tools:up`) |
 
 ## Run it — fully containerized (one command)
 
@@ -199,11 +201,15 @@ health/`completed_successfully` gates ordering, so the API only starts once the 
 place. Tear down with:
 
 ```bash
-pnpm down      # stop + remove the app containers (keeps Redis/Postgres volumes)
+pnpm down      # stop + remove the app containers (data under ./data/ is kept)
 ```
 
 The app services live behind a Compose `app` profile, so `pnpm infra:up` (below) still brings
 up Redis + Postgres only.
+
+> **Persistent state lives in `./data/`** (`./data/postgres`, `./data/redis`) as bind mounts,
+> not Docker-managed volumes — so it is easy to inspect and is gitignored. To wipe everything
+> and start fresh, stop the stack and `rm -rf data/`.
 
 ## Run it — local dev (hot reload)
 
@@ -223,6 +229,25 @@ pnpm --filter @rush-sale/web dev          # SPA on :5173
 
 A default sale (`launch-2026`, stock 1000) is seeded from `.env` on API boot. Create more
 via `POST /sales`.
+
+## Inspect the data (admin UIs)
+
+To watch the **actual** database rows and cache keys while the system runs, start the admin
+UIs (behind a Compose `tools` profile, so they never run in the default or app stacks):
+
+```bash
+pnpm tools:up      # docker compose --profile tools up -d
+```
+
+| UI | URL | Backs |
+|---|---|---|
+| **pgweb** | http://localhost:8081 | Postgres — `sales`, `reservations` (the Ledger) |
+| **redis-commander** | http://localhost:8082 | Redis — stock counter, buyers SET, reservation Stream |
+
+Both **auto-connect** to the running services (no login or manual registration). Stop them
+with `pnpm tools:down`. Useful flow: make a purchase, watch the `sale:*:stock` key drop and
+the Stream grow in redis-commander, then see the row land in `reservations` in pgweb once the
+worker drains it.
 
 ## API
 
@@ -302,11 +327,20 @@ SELECT sale_id, buyer_id, count(*) FROM reservations
   GROUP BY 1,2 HAVING count(*) > 1;                                         -- 0 rows
 ```
 
-For scenario 4, restart Redis with `docker compose restart redis` (AOF replays) or wipe its
-volume to force a **cold rehydrate from the Ledger** — either way the invariant holds.
+For scenario 4, restart Redis with `docker compose restart redis` (AOF replays) or, with Redis
+stopped, `rm -rf data/redis` to force a **cold rehydrate from the Ledger** — either way the
+invariant holds.
 
 ## Teardown
 
 ```bash
-pnpm infra:down    # stop + remove volumes
+pnpm down          # stop the app stack
+pnpm tools:down    # stop the admin UIs
+pnpm infra:down    # stop Redis + Postgres
+rm -rf data/       # optional: wipe all persisted state
 ```
+
+## Troubleshooting
+
+Hitting a port clash, a missing schema, an empty admin UI, or a k6 abort? See
+[`docs/troubleshooting.md`](docs/troubleshooting.md) for the common issues and fixes.

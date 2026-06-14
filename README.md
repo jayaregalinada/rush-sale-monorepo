@@ -166,11 +166,25 @@ apps/
   load/   k6 stress + correctness scenarios
 ```
 
-## Prerequisites
+## Requirements
 
-- Docker (everything else runs in containers)
-- For local (non-container) dev: Node ≥ 22 (developed on 26) + `pnpm`
-- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) for the load scenarios
+The containerized path needs only Docker; Node and pnpm are for local dev.
+
+| Tool | Version | Required for |
+|---|---|---|
+| **Docker** + Compose v2 | ≥ 24 | running the whole stack (`pnpm up`) — Redis, Postgres, API, worker, web |
+| **Node.js** | ≥ 22 (developed on 26) | local (non-container) dev only |
+| **pnpm** | ≥ 10 (`10.33.2`) | workspace package manager — `npm i -g pnpm` |
+| **[k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)** | ≥ 0.50 | load / stress scenarios |
+
+These TCP ports must be free on the host (the stack publishes them):
+
+| Port | Service |
+|---|---|
+| `3000` | API |
+| `5173` | Web SPA |
+| `5432` | Postgres |
+| `6379` | Redis |
 
 ## Run it — fully containerized (one command)
 

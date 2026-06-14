@@ -8,9 +8,8 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @rush-sale/web...
 COPY apps/web ./apps/web
-# Vite inlines VITE_* at build time, so the API URL is baked into the bundle here.
-ARG VITE_API_URL=http://localhost:3000
-ENV VITE_API_URL=$VITE_API_URL
+# No API URL is baked in: the bundle calls the same-origin /api prefix, which nginx
+# proxies to the API service (see nginx.conf). This keeps the image host-agnostic.
 RUN pnpm --filter @rush-sale/web build
 
 FROM nginx:1.27-alpine AS runtime

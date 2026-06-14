@@ -97,8 +97,6 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        VITE_API_URL: http://localhost:3000
     ports:
       - "5173:80"
     depends_on:

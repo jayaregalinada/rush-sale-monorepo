@@ -25,5 +25,16 @@
     "@biomejs/biome": "2.5.0",
     "turbo": "2.9.18",
     "typescript": "6.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "cpu-features",
+      "protobufjs",
+      "ssh2"
+    ]
   }
 }

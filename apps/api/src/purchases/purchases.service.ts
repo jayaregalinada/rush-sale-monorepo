@@ -24,8 +24,8 @@ const GATE_OUTCOME: Record<GateCode, Outcome> = {
 @Injectable()
 export class PurchasesService {
   constructor(
-    private readonly gate: Gate,
-    private readonly sales: SalesService,
+    private readonly _gate: Gate,
+    private readonly _sales: SalesService,
   ) {}
 
   /**
@@ -33,26 +33,29 @@ export class PurchasesService {
    * cached config; stock + one-per-user are decided atomically inside the Gate.
    */
   async purchase(saleId: string, buyerId: string): Promise<PurchaseResult> {
-    const sale = await this.sales.getSale(saleId);
+    const sale = await this._sales.getSale(saleId);
+
     if (!sale) {
       throw new NotFoundException(`unknown sale: ${saleId}`);
     }
 
-    const windowOutcome = NOT_ACTIVE_OUTCOME[this.sales.statusOf(sale)];
+    const windowOutcome = NOT_ACTIVE_OUTCOME[this._sales.statusOf(sale)];
+
     if (windowOutcome) {
       return { outcome: windowOutcome, saleId, buyerId };
     }
 
-    const result = await this.gate.reserve(saleId, buyerId);
-    return this.toPurchaseResult(saleId, buyerId, result);
+    const result = await this._gate.reserve(saleId, buyerId);
+
+    return this._toPurchaseResult(saleId, buyerId, result);
   }
 
   /** Has this buyer secured a reservation? */
   async hasPurchased(saleId: string, buyerId: string): Promise<boolean> {
-    return this.gate.hasBuyer(saleId, buyerId);
+    return this._gate.hasBuyer(saleId, buyerId);
   }
 
-  private toPurchaseResult(saleId: string, buyerId: string, result: GateResult): PurchaseResult {
+  private _toPurchaseResult(saleId: string, buyerId: string, result: GateResult): PurchaseResult {
     return {
       outcome: GATE_OUTCOME[result.code],
       saleId,

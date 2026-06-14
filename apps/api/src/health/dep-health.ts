@@ -10,30 +10,32 @@ import type { GateRedis } from '../redis/gate-redis';
 @Injectable()
 export class DepHealth {
   constructor(
-    @Inject(DB) private readonly db: Database,
-    @Inject(REDIS) private readonly redis: GateRedis,
-    private readonly hi: HealthIndicatorService,
-  ) { }
+    @Inject(DB) private readonly _db: Database,
+    @Inject(REDIS) private readonly _redis: GateRedis,
+    private readonly _healthIndicator: HealthIndicatorService,
+  ) {}
 
   async redisPing() {
-    const ind = this.hi.check('redis');
-    try {
-      await this.redis.ping();
+    const indicator = this._healthIndicator.check('redis');
 
-      return ind.up();
-    } catch (e) {
-      return ind.down({ message: (e as Error).message });
+    try {
+      await this._redis.ping();
+
+      return indicator.up();
+    } catch (error) {
+      return indicator.down({ message: (error as Error).message });
     }
   }
 
   async dbPing() {
-    const ind = this.hi.check('postgres');
-    try {
-      await this.db.execute(sql`select 1`);
+    const indicator = this._healthIndicator.check('postgres');
 
-      return ind.up();
-    } catch (e) {
-      return ind.down({ message: (e as Error).message });
+    try {
+      await this._db.execute(sql`select 1`);
+
+      return indicator.up();
+    } catch (error) {
+      return indicator.down({ message: (error as Error).message });
     }
   }
 }

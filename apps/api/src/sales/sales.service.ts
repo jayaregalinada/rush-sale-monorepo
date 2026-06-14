@@ -17,47 +17,52 @@ interface ReservationState {
 
 @Injectable()
 export class SalesService {
-  private readonly log = new Logger(SalesService.name);
+  private readonly _log = new Logger(SalesService.name);
   /** Sale config is small and rarely changes — cache it to keep the purchase path off Postgres. */
-  private readonly cache = new Map<string, Sale>();
+  private readonly _cache = new Map<string, Sale>();
 
   constructor(
-    @Inject(DB) private readonly db: Database,
-    private readonly gate: Gate,
+    @Inject(DB) private readonly _db: Database,
+    private readonly _gate: Gate,
   ) {}
 
   /** Create a sale (idempotent on id), persist it, then seed its Gate state. */
   async createSale(input: NewSale): Promise<Sale> {
-    await this.db.insert(saleTable).values(input).onConflictDoNothing();
-    const sale = await this.loadFromDb(input.id);
+    await this._db.insert(saleTable).values(input).onConflictDoNothing();
+    const sale = await this._loadFromDb(input.id);
+
     if (!sale) {
       throw new Error(`sale ${input.id} vanished after insert`);
     }
+
     await this.seedOrRehydrate(sale);
+
     return sale;
   }
 
   getCached(id: string): Sale | undefined {
-    return this.cache.get(id);
+    return this._cache.get(id);
   }
 
   async getSale(id: string): Promise<Sale | undefined> {
-    return this.cache.get(id) ?? (await this.loadFromDb(id));
+    return this._cache.get(id) ?? (await this._loadFromDb(id));
   }
 
   statusOf(sale: Sale, now = new Date()): SaleStatus {
     if (now < sale.startsAt) {
       return 'UPCOMING';
     }
+
     if (now >= sale.endsAt) {
       return 'ENDED';
     }
+
     return 'ACTIVE';
   }
 
   /** Live remaining stock; null if the sale is not seeded yet. */
   remaining(saleId: string): Promise<number | null> {
-    return this.gate.remaining(saleId);
+    return this._gate.remaining(saleId);
   }
 
   /**
@@ -67,51 +72,58 @@ export class SalesService {
    * Ledger count.
    */
   async seedOrRehydrate(sale: Sale): Promise<void> {
-    this.cache.set(sale.id, sale);
+    this._cache.set(sale.id, sale);
 
-    if (!(await this.gate.acquireInitLock(sale.id))) {
-      this.log.debug(`seed skipped for ${sale.id}: lock held by a peer`);
+    if (!(await this._gate.acquireInitLock(sale.id))) {
+      this._log.debug(`seed skipped for ${sale.id}: lock held by a peer`);
+
       return;
     }
+
     try {
-      if (await this.gate.isSeeded(sale.id)) {
-        this.log.debug(`seed skipped for ${sale.id}: already live (AOF)`);
+      if (await this._gate.isSeeded(sale.id)) {
+        this._log.debug(`seed skipped for ${sale.id}: already live (AOF)`);
+
         return;
       }
 
-      const { count, buyers } = await this.loadReservationState(sale.id);
+      const { count, buyers } = await this._loadReservationState(sale.id);
       const remaining = Math.max(0, sale.initialStock - count);
-      await this.gate.seed(sale.id, remaining, buyers);
+      await this._gate.seed(sale.id, remaining, buyers);
 
-      this.log.log(
+      this._log.log(
         `seeded ${sale.id}: remaining=${remaining} buyers=${buyers.length} (initial=${sale.initialStock})`,
       );
     } finally {
-      await this.gate.releaseInitLock(sale.id);
+      await this._gate.releaseInitLock(sale.id);
     }
   }
 
   /** Seed every known sale — run on boot and on Redis reconnect. */
   async rehydrateAll(): Promise<void> {
-    const all = await this.db.select().from(saleTable);
+    const all = await this._db.select().from(saleTable);
+
     for (const sale of all) {
       await this.seedOrRehydrate(sale);
     }
   }
 
-  private async loadReservationState(saleId: string): Promise<ReservationState> {
-    const rows = await this.db
+  private async _loadReservationState(saleId: string): Promise<ReservationState> {
+    const rows = await this._db
       .select({ buyerId: reservationTable.buyerId })
       .from(reservationTable)
       .where(eq(reservationTable.saleId, saleId));
-    return { count: rows.length, buyers: rows.map((r) => r.buyerId) };
+
+    return { count: rows.length, buyers: rows.map((row) => row.buyerId) };
   }
 
-  private async loadFromDb(id: string): Promise<Sale | undefined> {
-    const [row] = await this.db.select().from(saleTable).where(eq(saleTable.id, id)).limit(1);
+  private async _loadFromDb(id: string): Promise<Sale | undefined> {
+    const [row] = await this._db.select().from(saleTable).where(eq(saleTable.id, id)).limit(1);
+
     if (row) {
-      this.cache.set(id, row);
+      this._cache.set(id, row);
     }
+
     return row;
   }
 }

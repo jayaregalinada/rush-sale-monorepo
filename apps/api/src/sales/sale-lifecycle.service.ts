@@ -10,44 +10,51 @@ import type { GateRedis } from '../redis/gate-redis';
  */
 @Injectable()
 export class SaleLifecycleService implements OnApplicationBootstrap {
-  private readonly log = new Logger(SaleLifecycleService.name);
+  private readonly _log = new Logger(SaleLifecycleService.name);
 
   constructor(
-    private readonly sales: SalesService,
-    @Inject(REDIS) private readonly redis: GateRedis,
+    private readonly _sales: SalesService,
+    @Inject(REDIS) private readonly _redis: GateRedis,
   ) {}
 
   async onApplicationBootstrap() {
-    await this.seedFromEnv();
-    await this.sales.rehydrateAll();
+    await this._seedFromEnv();
+    await this._sales.rehydrateAll();
 
     // After a reconnect the AOF may have replayed (keys present → seed is a no-op) or the
     // instance may be fresh (keys absent → rehydrate from Ledger). seedOrRehydrate handles both.
-    this.redis.on('ready', () => {
-      this.log.warn('redis ready (reconnect) — rehydrating sales');
-      void this.sales.rehydrateAll().catch((e) => this.log.error('rehydrate failed', e));
+    this._redis.on('ready', () => {
+      this._log.warn('redis ready (reconnect) — rehydrating sales');
+      void this._sales.rehydrateAll().catch((error) => this._log.error('rehydrate failed', error));
     });
   }
 
-  private async seedFromEnv() {
+  private async _seedFromEnv() {
     const env = loadEnv();
-    if (!env.SEED_SALE_ID) return;
+
+    if (!env.SEED_SALE_ID) {
+      return;
+    }
+
     if (
       !env.SEED_SALE_PRODUCT ||
       !env.SEED_SALE_STOCK ||
       !env.SEED_SALE_STARTS_AT ||
       !env.SEED_SALE_ENDS_AT
     ) {
-      this.log.warn(`SEED_SALE_ID=${env.SEED_SALE_ID} set but seed fields incomplete — skipping`);
+      this._log.warn(`SEED_SALE_ID=${env.SEED_SALE_ID} set but seed fields incomplete — skipping`);
+
       return;
     }
-    await this.sales.createSale({
+
+    await this._sales.createSale({
       id: env.SEED_SALE_ID,
       product: env.SEED_SALE_PRODUCT,
       initialStock: env.SEED_SALE_STOCK,
       startsAt: env.SEED_SALE_STARTS_AT,
       endsAt: env.SEED_SALE_ENDS_AT,
     });
-    this.log.log(`seeded default sale ${env.SEED_SALE_ID}`);
+
+    this._log.log(`seeded default sale ${env.SEED_SALE_ID}`);
   }
 }

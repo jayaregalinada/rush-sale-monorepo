@@ -48,12 +48,12 @@ describe('Gate', () => {
     await redis.set(keys.stock, STOCK);
 
     const results = await Promise.all(
-      Array.from({ length: BUYERS }, (_, i) => buy(`buyer-${i}`)),
+      Array.from({ length: BUYERS }, (_, index) => buy(`buyer-${index}`)),
     );
-    const codes = results.map((r) => r[0]);
+    const codes = results.map((result) => result[0]);
 
-    expect(codes.filter((c) => c === GateCode.SUCCESS)).toHaveLength(STOCK);
-    expect(codes.filter((c) => c === GateCode.SOLD_OUT)).toHaveLength(BUYERS - STOCK);
+    expect(codes.filter((code) => code === GateCode.SUCCESS)).toHaveLength(STOCK);
+    expect(codes.filter((code) => code === GateCode.SOLD_OUT)).toHaveLength(BUYERS - STOCK);
     expect(Number(await redis.get(keys.stock))).toBe(0);
     // One stream entry per real reservation — the worker's input is exactly the winners.
     expect(await redis.xlen(keys.stream)).toBe(STOCK);
@@ -65,10 +65,10 @@ describe('Gate', () => {
     const results = await Promise.all(
       Array.from({ length: 200 }, () => buy('repeat-buyer')),
     );
-    const codes = results.map((r) => r[0]);
+    const codes = results.map((result) => result[0]);
 
-    expect(codes.filter((c) => c === GateCode.SUCCESS)).toHaveLength(1);
-    expect(codes.filter((c) => c === GateCode.ALREADY_PURCHASED)).toHaveLength(199);
+    expect(codes.filter((code) => code === GateCode.SUCCESS)).toHaveLength(1);
+    expect(codes.filter((code) => code === GateCode.ALREADY_PURCHASED)).toHaveLength(199);
     expect(Number(await redis.get(keys.stock))).toBe(49); // only one unit consumed
     expect(await redis.sismember(keys.buyers, 'repeat-buyer')).toBe(1);
   });

@@ -8,7 +8,7 @@ export const createSaleSchema = z
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
   })
-  .refine((s) => s.endsAt > s.startsAt, {
+  .refine((sale) => sale.endsAt > sale.startsAt, {
     message: 'endsAt must be after startsAt',
     path: ['endsAt'],
   });

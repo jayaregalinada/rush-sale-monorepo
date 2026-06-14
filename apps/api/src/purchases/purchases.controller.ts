@@ -7,7 +7,7 @@ import type { FastifyReply } from 'fastify';
 
 @Controller('sales/:id/purchases')
 export class PurchasesController {
-  constructor(private readonly purchases: PurchasesService) { }
+  constructor(private readonly _purchases: PurchasesService) {}
 
   /**
    * Attempt to secure the item. No auth in this exercise → buyer identity is the
@@ -19,7 +19,7 @@ export class PurchasesController {
     @Body(new ZodPipe(purchaseBodySchema)) body: { userId: string },
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const result = await this.purchases.purchase(saleId, body.userId);
+    const result = await this._purchases.purchase(saleId, body.userId);
     res.status(OUTCOME_STATUS[result.outcome]);
 
     return result;
@@ -27,6 +27,6 @@ export class PurchasesController {
 
   @Get(':userId')
   async check(@Param('id') saleId: string, @Param('userId') userId: string) {
-    return { saleId, userId, purchased: await this.purchases.hasPurchased(saleId, userId) };
+    return { saleId, userId, purchased: await this._purchases.hasPurchased(saleId, userId) };
   }
 }

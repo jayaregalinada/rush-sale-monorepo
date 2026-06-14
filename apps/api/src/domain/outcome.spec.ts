@@ -4,8 +4,8 @@ import { OUTCOME_STATUS } from './outcome-status';
 
 describe('outcome → HTTP status', () => {
   it('maps every outcome to a status', () => {
-    for (const o of Object.values(Outcome)) {
-      expect(OUTCOME_STATUS[o]).toBeTypeOf('number');
+    for (const outcome of Object.values(Outcome)) {
+      expect(OUTCOME_STATUS[outcome]).toBeTypeOf('number');
     }
   });
 

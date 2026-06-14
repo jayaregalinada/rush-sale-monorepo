@@ -3,14 +3,17 @@ import type { ZodType } from 'zod';
 
 /** Validate a request payload against a Zod schema; 400 with readable issues on failure. */
 export class ZodPipe<T> implements PipeTransform<unknown, T> {
-  constructor(private readonly schema: ZodType<T>) { }
+  constructor(private readonly _schema: ZodType<T>) {}
 
   transform(value: unknown): T {
-    const r = this.schema.safeParse(value);
-    if (!r.success) {
-      throw new BadRequestException(r.error.issues.map((i) => ({ path: i.path, message: i.message })));
+    const result = this._schema.safeParse(value);
+
+    if (!result.success) {
+      throw new BadRequestException(
+        result.error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+      );
     }
 
-    return r.data;
+    return result.data;
   }
 }

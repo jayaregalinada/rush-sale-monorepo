@@ -16,7 +16,7 @@ const REFRESH_MS = 5000; // how often to discover newly-created sales / streams
 const IDLE_POLL_MS = 1000; // poll cadence while no streams exist yet
 const BACKOFF_MS = 1000; // pause after a failed drain iteration
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (durationMs: number) => new Promise((resolve) => setTimeout(resolve, durationMs));
 
 /**
  * Drains per-sale reservation Streams into the Ledger. At-least-once: the insert is
@@ -25,70 +25,74 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 @Injectable()
 export class WorkerService {
-  private readonly log = new Logger(WorkerService.name);
-  private running = false;
-  private streams = new Map<string, string>(); // streamKey -> saleId
+  private readonly _log = new Logger(WorkerService.name);
+  private _running = false;
+  private _streams = new Map<string, string>(); // streamKey -> saleId
 
   constructor(
-    @Inject(DB) private readonly db: Database,
-    @Inject(REDIS) private readonly redis: GateRedis,
-  ) { }
+    @Inject(DB) private readonly _db: Database,
+    @Inject(REDIS) private readonly _redis: GateRedis,
+  ) {}
 
   async run(): Promise<void> {
-    this.running = true;
-    await this.refreshStreams();
-    this.log.log(`worker ${CONSUMER} draining ${this.streams.size} stream(s)`);
+    this._running = true;
+    await this._refreshStreams();
+    this._log.log(`worker ${CONSUMER} draining ${this._streams.size} stream(s)`);
 
     let lastRefresh = Date.now();
-    while (this.running) {
+
+    while (this._running) {
       if (Date.now() - lastRefresh > REFRESH_MS) {
-        await this.refreshStreams();
+        await this._refreshStreams();
         lastRefresh = Date.now();
       }
 
-      if (this.streams.size === 0) {
+      if (this._streams.size === 0) {
         await sleep(IDLE_POLL_MS); // wait for the first sale to be created
         continue;
       }
 
       try {
-        await this.reclaimStale();
-        await this.readBatch();
-      } catch (err) {
-        this.log.error('drain iteration failed; backing off', err as Error);
+        await this._reclaimStale();
+        await this._readBatch();
+      } catch (error) {
+        this._log.error('drain iteration failed; backing off', error as Error);
         await sleep(BACKOFF_MS);
       }
     }
   }
 
   stop() {
-    this.running = false;
+    this._running = false;
   }
 
   /** Discover sales, create the consumer group on each stream (idempotent). */
-  private async refreshStreams() {
-    const rows = await this.db.select({ id: saleTable.id }).from(saleTable);
+  private async _refreshStreams() {
+    const rows = await this._db.select({ id: saleTable.id }).from(saleTable);
+
     for (const { id } of rows) {
       const key = saleKeys(id).stream;
-      if (this.streams.has(key)) {
+
+      if (this._streams.has(key)) {
         continue;
       }
 
       try {
-        await this.redis.xgroup('CREATE', key, STREAM_GROUP, '0', 'MKSTREAM');
-      } catch (e) {
-        if (!(e as Error).message.includes('BUSYGROUP')) {
-          throw e;
+        await this._redis.xgroup('CREATE', key, STREAM_GROUP, '0', 'MKSTREAM');
+      } catch (error) {
+        if (!(error as Error).message.includes('BUSYGROUP')) {
+          throw error;
         }
       }
-      this.streams.set(key, id);
+
+      this._streams.set(key, id);
     }
   }
 
-  private async readBatch() {
-    const keys = [...this.streams.keys()];
+  private async _readBatch() {
+    const keys = [...this._streams.keys()];
     const ids = keys.map(() => '>');
-    const res = (await this.redis.xreadgroup(
+    const replies = (await this._redis.xreadgroup(
       'GROUP',
       STREAM_GROUP,
       CONSUMER,
@@ -101,16 +105,19 @@ export class WorkerService {
       ...ids,
     )) as [string, [string, string[]][]][] | null;
 
-    if (!res) return;
-    for (const [streamKey, entries] of res) {
-      await this.persist(streamKey, entries);
+    if (!replies) {
+      return;
+    }
+
+    for (const [streamKey, entries] of replies) {
+      await this._persist(streamKey, entries);
     }
   }
 
   /** Reclaim entries left pending by a crashed consumer so no reservation is stranded. */
-  private async reclaimStale() {
-    for (const streamKey of this.streams.keys()) {
-      const [, entries] = (await this.redis.xautoclaim(
+  private async _reclaimStale() {
+    for (const streamKey of this._streams.keys()) {
+      const [, entries] = (await this._redis.xautoclaim(
         streamKey,
         STREAM_GROUP,
         CONSUMER,
@@ -121,40 +128,44 @@ export class WorkerService {
       )) as [string, [string, string[]][], string[]];
 
       if (entries?.length) {
-        await this.persist(streamKey, entries);
+        await this._persist(streamKey, entries);
       }
     }
   }
 
-  private async persist(streamKey: string, entries: [string, string[]][]) {
+  private async _persist(streamKey: string, entries: [string, string[]][]) {
     if (!entries?.length) {
       return;
     }
 
     for (const [streamId, fields] of entries) {
-      const f = fieldsToObject(fields);
-      const saleId = f.saleId;
-      const buyerId = f.buyerId;
+      const parsed = parseEntryFields(fields);
+      const saleId = parsed.saleId;
+      const buyerId = parsed.buyerId;
+
       if (!saleId || !buyerId) {
-        this.log.warn(`malformed entry ${streamId} on ${streamKey} — acking to skip`);
-        await this.redis.xack(streamKey, STREAM_GROUP, streamId);
+        this._log.warn(`malformed entry ${streamId} on ${streamKey} — acking to skip`);
+        await this._redis.xack(streamKey, STREAM_GROUP, streamId);
         continue;
       }
+
       // Idempotent on (sale_id, buyer_id); the stream id is the row id for traceability.
-      await this.db
+      await this._db
         .insert(reservationTable)
         .values({ id: streamId, saleId, buyerId })
         .onConflictDoNothing();
-      await this.redis.xack(streamKey, STREAM_GROUP, streamId);
+      await this._redis.xack(streamKey, STREAM_GROUP, streamId);
     }
   }
 }
 
-function fieldsToObject(fields: string[]): Record<string, string> {
-  const o: Record<string, string> = {};
-  for (let i = 0; i + 1 < fields.length; i += 2) {
-    o[fields[i]!] = fields[i + 1]!;
+/** Redis returns stream fields as a flat [name, value, ...] array; pair them into an object. */
+function parseEntryFields(fields: string[]): Record<string, string> {
+  const record: Record<string, string> = {};
+
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    record[fields[index]!] = fields[index + 1]!;
   }
 
-  return o;
+  return record;
 }

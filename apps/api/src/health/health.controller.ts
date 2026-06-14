@@ -5,8 +5,8 @@ import { DepHealth } from './dep-health';
 @Controller()
 export class HealthController {
   constructor(
-    private readonly health: HealthCheckService,
-    private readonly deps: DepHealth,
+    private readonly _health: HealthCheckService,
+    private readonly _deps: DepHealth,
   ) {}
 
   /** Liveness — process is up. */
@@ -19,6 +19,6 @@ export class HealthController {
   @Get('ready')
   @HealthCheck()
   ready() {
-    return this.health.check([() => this.deps.redisPing(), () => this.deps.dbPing()]);
+    return this._health.check([() => this._deps.redisPing(), () => this._deps.dbPing()]);
   }
 }

@@ -119,6 +119,38 @@ The scenarios encode invariants as `abortOnFail` thresholds (e.g. `outcome_succe
 An instant abort usually means the sale is **already sold out or fully claimed** from a
 previous run — reset state (see *Quick reset*) and re-run.
 
+## Every purchase 500s with `WRONGTYPE` (stale Redis volume)
+
+A load run where **every** request fails (`http_req_failed` 100%, every outcome `NOT_READY`,
+`checks` and `http_req_failed` thresholds crossed) and the API logs:
+
+```
+WRONGTYPE Operation against a key holding the wrong kind of value
+  ... command: evalsha ... sale:<id>:buyers ...
+```
+
+The Gate's keys have fixed Redis types — `sale:<id>:stock` is a string, `sale:<id>:buyers` is
+a **HASH** (buyerId → reservationId), `sale:<id>:reservations` is a **STREAM**. If an *older
+build* wrote one of these keys with a different shape (e.g. `buyers` as a SET), that value
+survives in the persisted `./data/redis` volume across a rebuild — the new code's `HGET`/`HSET`
+then collide with it. Confirm the mismatch:
+
+```bash
+docker compose exec redis redis-cli TYPE sale:launch-2026:buyers   # expect: hash
+```
+
+Fix by clearing the stale state — either a full reset (recommended; wipes the volume) or an
+in-place flush + re-seed:
+
+```bash
+pnpm load:reset                                    # down → rm -rf data → rebuild + re-seed
+# or, without a rebuild:
+docker compose exec redis redis-cli FLUSHALL
+docker compose restart api worker                  # re-seeds the Gate from the Ledger on boot
+```
+
+Reset between runs as a habit — it guarantees no cross-version key shape lingers.
+
 ## Performance & load: symptom → bottleneck → mitigation
 
 A runbook for behaviour under stress. The architecture's scaling levers are in

@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
+import { BoundedTtlSet } from '../common/bounded-ttl-set';
 import type { Database } from '../db/database';
 import { DB } from '../db/db';
 import type { NewSale } from '../db/new-sale';
@@ -17,11 +18,25 @@ interface ReservationState {
   buyers: Record<string, string>;
 }
 
+/**
+ * Negative-cache bounds for unknown sale ids. The cap keeps a flood of bogus ids from
+ * growing memory; the short TTL lets a sale created on another node become visible soon
+ * after its entry expires (the positive cache is consulted first, so a local create wins
+ * immediately regardless).
+ */
+const UNKNOWN_SALE_CACHE_CAPACITY = 1024;
+const UNKNOWN_SALE_CACHE_TTL_MS = 5_000;
+
 @Injectable()
 export class SalesService {
   private readonly _log = new Logger(SalesService.name);
   /** Sale config is small and rarely changes — cache it to keep the purchase path off Postgres. */
   private readonly _cache = new Map<string, Sale>();
+  /** Ids confirmed absent from Postgres — short-circuits repeat lookups off the DB. */
+  private readonly _unknownSales = new BoundedTtlSet(
+    UNKNOWN_SALE_CACHE_CAPACITY,
+    UNKNOWN_SALE_CACHE_TTL_MS,
+  );
 
   constructor(
     @Inject(DB) private readonly _db: Database,
@@ -47,7 +62,23 @@ export class SalesService {
   }
 
   async getSale(id: string): Promise<Sale | undefined> {
-    return this._cache.get(id) ?? (await this._loadFromDb(id));
+    const cached = this._cache.get(id);
+
+    if (cached) {
+      return cached;
+    }
+
+    if (this._unknownSales.has(id)) {
+      return undefined;
+    }
+
+    const row = await this._loadFromDb(id);
+
+    if (!row) {
+      this._unknownSales.add(id);
+    }
+
+    return row;
   }
 
   statusOf(sale: Sale, now = new Date()): SaleStatus {

@@ -10,7 +10,7 @@ persisted state** (Postgres + Redis live under `./data/`):
 ```bash
 docker compose --profile app --profile tools down
 rm -rf data/
-pnpm up        # rebuild + restart the full stack
+pnpm start     # rebuild + restart the full stack
 ```
 
 The default sale (`launch-2026`) re-seeds on API boot, so a wipe is safe in dev.
@@ -37,7 +37,7 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN     # macOS / Linux
 ```
 
 A common culprit is a **local dev API/Redis/Postgres** already running from `pnpm infra:up`
-plus a separate `pnpm --filter @rush-sale/api dev`. Pick one path — containerized (`pnpm up`)
+plus a separate `pnpm --filter @rush-sale/api dev`. Pick one path — containerized (`pnpm start`)
 **or** local dev — not both on the same ports.
 
 ## `curl localhost:3000` returns nothing, but the container is up

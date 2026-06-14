@@ -196,10 +196,10 @@ The containerized path needs only Docker; Node and pnpm are for local dev.
 
 | Tool | Version | Required for |
 |---|---|---|
-| **Docker** + Compose v2 | ≥ 24 | running the whole stack (`pnpm up`) — Redis, Postgres, API, worker, web |
+| **Docker** + Compose v2 | ≥ 24 | running the whole stack (`pnpm start`) — Redis, Postgres, API, worker, web |
 | **Node.js** | ≥ 22 (developed on 26) | local (non-container) dev only |
 | **pnpm** | ≥ 10 (`10.33.2`) | workspace package manager — `npm i -g pnpm` |
-| **[k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)** | ≥ 0.50 | load / stress scenarios |
+| **[k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)** | ≥ 0.50 | load scenarios — **optional**: only the local-binary path needs it; `pnpm load:*` runs k6 in a container |
 
 These TCP ports must be free on the host (the stack publishes them):
 
@@ -215,7 +215,8 @@ These TCP ports must be free on the host (the stack publishes them):
 ## Run it — fully containerized (one command)
 
 ```bash
-pnpm up        # docker compose --profile app up -d --build
+pnpm start          # docker compose --profile app up -d --build  (detached)
+pnpm start:attach   # same, without -d — streams all container logs in the foreground
 ```
 
 This builds and starts the whole stack: Redis, Postgres, a one-shot **migrate** (pushes the
@@ -304,13 +305,22 @@ curl -X POST localhost:3000/sales/launch-2026/purchases \
 
 ```bash
 pnpm --filter @rush-sale/api test        # unit (no Docker)
-pnpm --filter @rush-sale/api test:int    # integration — boots a REAL Redis via Testcontainers
+pnpm --filter @rush-sale/api test:int    # integration — boots REAL Redis + Postgres via Testcontainers
 ```
 
-The integration suite is the correctness centrepiece: 1000 concurrent buyers against 100
-stock yields **exactly 100 `SUCCESS`**, the rest `SOLD_OUT`; a 200-call retry storm from one
-buyer yields **exactly one `SUCCESS`** and 199 `ALREADY_PURCHASED`. Only a real Redis can run
-the Lua `EVAL` the proof depends on.
+**Unit** (no infra) covers the business logic in isolation: the outcome→HTTP mapping (ADR-0003),
+the purchase service's window short-circuit + Gate-code→outcome mapping, the sale service's
+status / `SOLD_OUT` collapse / negative-cache behaviour, and the `BoundedTtlSet`.
+
+**Integration** is the correctness centrepiece, and runs at two layers against real infra:
+
+- `test/gate.int-spec.ts` — the Lua **Gate** directly: 1000 concurrent buyers against 100 stock
+  yields **exactly 100 `SUCCESS`**, the rest `SOLD_OUT`; a 200-call retry storm from one buyer
+  yields **exactly one `SUCCESS`** and 199 `ALREADY_PURCHASED`. Only a real Redis can run the Lua
+  `EVAL` the proof depends on.
+- `test/api.int-spec.ts` — the full stack over **HTTP** (Nest + real Redis + real Postgres):
+  create → status → purchase → duplicate → check, the 4xx/404/400 contract, and a 200-buyers-vs-10-stock
+  burst proving the concurrency control holds at the API edge, not just in the script.
 
 ## Lint & format
 
@@ -324,12 +334,29 @@ pnpm format    # biome check --write .  (apply safe fixes)
 
 ## Stress testing (k6)
 
+With the stack up (`pnpm start`), run k6 **in a container** — no global install — from the repo root:
+
 ```bash
-cd apps/load
-pnpm herd          # 1: thundering herd — 5k rps spike, p99 < 250ms, never oversells
-pnpm one-per-user  # 2: 50 buyers × 40 retries — at most one SUCCESS each
-pnpm window        # 3: outcomes match the live sale window (upcoming/active/ended)
-pnpm fault-redis   # 4: kill Redis mid-run (see script) — fails clean, recovers, no oversell
+pnpm load:herd           # 1: thundering herd — 5k rps spike, p99 < 250ms, never oversells
+pnpm load:one-per-user   # 2: 50 buyers × 40 retries — at most one SUCCESS each
+pnpm load:window         # 3: outcomes match the live sale window (upcoming/active/ended)
+pnpm load:fault-redis    # 4: kill Redis mid-run (see script) — fails clean, recovers, no oversell
+```
+
+These use the `grafana/k6` image (compose `load` profile) on the app network, hitting
+`http://api:3000`. If you'd rather use a locally-installed k6 binary against the host port,
+run it from the root via the package filter (no `cd`):
+
+```bash
+pnpm -F @rush-sale/load run herd   # also: one-per-user / window / fault-redis
+```
+
+Reset to a clean, freshly-seeded slate between runs (a scenario aborts if the sale is already
+sold out from a prior run):
+
+```bash
+pnpm load:reset          # down → rm -rf data → rebuild + start detached (re-seeds launch-2026)
+pnpm load:reset:attach   # same, but streams container logs in the foreground (no -d)
 ```
 
 Each scenario encodes its pass/fail as **k6 thresholds**, so a run exits non-zero the moment
@@ -354,6 +381,9 @@ SELECT sale_id, buyer_id, count(*) FROM reservations
 For scenario 4, restart Redis with `docker compose restart redis` (AOF replays) or, with Redis
 stopped, `rm -rf data/redis` to force a **cold rehydrate from the Ledger** — either way the
 invariant holds.
+
+Full walkthrough — running each scenario, reading the k6 thresholds, and the independent DB
+cross-check — in [`docs/load-testing.md`](docs/load-testing.md).
 
 ## Teardown
 

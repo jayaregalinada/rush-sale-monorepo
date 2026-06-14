@@ -1,7 +1,7 @@
 {
   "name": "rush-sale",
   "private": true,
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@11.6.0",
   "engines": {
     "node": ">=22"
   },
@@ -14,27 +14,24 @@
     "test": "turbo run test",
     "test:int": "turbo run test:int",
     "db:push": "turbo run db:push",
-    "up": "docker compose --profile app up -d --build",
+    "start": "docker compose --profile app up -d --build",
+    "start:attach": "docker compose --profile app up --build",
     "down": "docker compose --profile app down",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "tools:up": "docker compose --profile tools up -d",
-    "tools:down": "docker compose --profile tools down"
+    "tools:down": "docker compose --profile tools down",
+    "load": "docker compose --profile load run --rm k6 run",
+    "load:reset": "docker compose --profile app --profile tools --profile load down && rm -rf data && docker compose --profile app up -d --build",
+    "load:reset:attach": "docker compose --profile app --profile tools --profile load down && rm -rf data && docker compose --profile app up --build",
+    "load:herd": "docker compose --profile load run --rm k6 run scenarios/thundering-herd.js",
+    "load:one-per-user": "docker compose --profile load run --rm k6 run scenarios/one-per-user.js",
+    "load:window": "docker compose --profile load run --rm k6 run scenarios/sale-window.js",
+    "load:fault-redis": "docker compose --profile load run --rm k6 run scenarios/fault-redis.js"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.0",
     "turbo": "2.9.18",
     "typescript": "6.0.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "esbuild"
-    ],
-    "ignoredBuiltDependencies": [
-      "cpu-features",
-      "protobufjs",
-      "ssh2"
-    ]
   }
 }

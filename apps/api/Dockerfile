@@ -3,7 +3,7 @@
 # lockfile and tsconfig.base.json are all visible.
 
 FROM node:26-alpine AS builder
-RUN npm install -g pnpm@10.33.2
+RUN npm install -g pnpm@11.6.0
 WORKDIR /repo
 # Manifests first so the dependency layer caches across source changes.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
@@ -13,7 +13,7 @@ COPY apps/api ./apps/api
 RUN pnpm --filter @rush-sale/api build
 
 FROM node:26-alpine AS runtime
-RUN npm install -g pnpm@10.33.2
+RUN npm install -g pnpm@11.6.0
 ENV NODE_ENV=production
 WORKDIR /repo
 # Reinstall production-only dependencies — drops the SWC/Drizzle-kit/test toolchain.

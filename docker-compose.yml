@@ -135,3 +135,20 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  # --- Load testing (profile "load") -------------------------------------------
+  # Run k6 in a container — no global k6 install needed. The app stack must already
+  # be running and seeded (`pnpm up`); k6 joins the same network and hits the api
+  # service directly at http://api:3000.
+  #   pnpm load:herd
+  #   docker compose --profile load run --rm k6 run scenarios/thundering-herd.js
+  k6:
+    profiles: ["load"]
+    image: grafana/k6:0.50.0
+    environment:
+      BASE_URL: http://api:3000
+      SALE_ID: launch-2026
+    volumes:
+      # Scenarios are read-only inputs; k6 never writes into the mount.
+      - ./apps/load:/load:ro
+    working_dir: /load

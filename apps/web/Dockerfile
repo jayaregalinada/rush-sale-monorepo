@@ -2,7 +2,7 @@
 # Build context is the repo root (see docker-compose.yml).
 
 FROM node:26-alpine AS builder
-RUN npm install -g pnpm@10.33.2
+RUN npm install -g pnpm@11.6.0
 WORKDIR /repo
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json ./apps/web/package.json

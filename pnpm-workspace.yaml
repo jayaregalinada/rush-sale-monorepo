@@ -6,3 +6,12 @@ catalog:
   typescript: 6.0.3
   vitest: 4.1.8
   "@types/node": 24.7.0
+
+# Per-dependency build-script approval (pnpm 11 replaced the onlyBuilt/ignoredBuilt lists
+# with this allow-map). Only the native toolchain needs its install scripts to run.
+allowBuilds:
+  "@swc/core": true
+  esbuild: true
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

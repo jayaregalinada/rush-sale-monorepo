@@ -10,7 +10,6 @@ const INIT_LOCK_TTL_SECONDS = 30;
 const INIT_LOCK_TOKEN = '1';
 const LOCK_ACQUIRED = 'OK';
 const KEY_EXISTS = 1;
-const IS_MEMBER = 1;
 
 /**
  * Owns the Gate's live Redis state — the single concurrency-control surface. Every
@@ -19,7 +18,7 @@ const IS_MEMBER = 1;
  */
 @Injectable()
 export class Gate {
-  constructor(@Inject(REDIS) private readonly _redis: GateRedis) {}
+  constructor(@Inject(REDIS) private readonly _redis: GateRedis) { }
 
   /** Atomically attempt a reservation (the Lua Gate). */
   async reserve(saleId: string, buyerId: string): Promise<GateResult> {
@@ -32,24 +31,28 @@ export class Gate {
       saleId,
     );
 
-    if (code === GateCode.SUCCESS) {
-      return { code: GateCode.SUCCESS, remaining: Number(rest[0]), reservationId: String(rest[1]) };
-    }
+    switch (code) {
+      case GateCode.SUCCESS:
+        return {
+          code: GateCode.SUCCESS,
+          remaining: Number(rest[0]),
+          reservationId: String(rest[1]),
+        };
 
-    if (code === GateCode.SOLD_OUT) {
-      return { code: GateCode.SOLD_OUT, remaining: 0 };
-    }
+      case GateCode.SOLD_OUT:
+        return { code: GateCode.SOLD_OUT, remaining: 0 };
 
-    if (code === GateCode.ALREADY_PURCHASED) {
-      return { code: GateCode.ALREADY_PURCHASED };
-    }
+      case GateCode.ALREADY_PURCHASED:
+        return { code: GateCode.ALREADY_PURCHASED, reservationId: String(rest[0]) };
 
-    return { code: GateCode.NOT_READY };
+      default:
+        return { code: GateCode.NOT_READY };
+    }
   }
 
-  /** Has this buyer already secured a reservation? */
-  async hasBuyer(saleId: string, buyerId: string): Promise<boolean> {
-    return (await this._redis.sismember(saleKeys(saleId).buyers, buyerId)) === IS_MEMBER;
+  /** The buyer's reservation id, or null if they hold none. */
+  async reservationOf(saleId: string, buyerId: string): Promise<string | null> {
+    return this._redis.hget(saleKeys(saleId).buyers, buyerId);
   }
 
   /** Live remaining stock; null if the sale is not seeded yet. */
@@ -81,14 +84,17 @@ export class Gate {
     await this._redis.del(saleKeys(saleId).initLock);
   }
 
-  /** Seed live state in one round trip: stock counter + the set of prior buyers. */
-  async seed(saleId: string, remaining: number, buyers: string[]): Promise<void> {
+  /**
+   * Seed live state in one round trip: stock counter + the prior buyers, each mapped to
+   * its reservation id (buyerId → reservationId) so rehydration restores the check lookup.
+   */
+  async seed(saleId: string, remaining: number, buyers: Record<string, string>): Promise<void> {
     const keys = saleKeys(saleId);
     const pipe = this._redis.pipeline();
     pipe.set(keys.stock, remaining);
 
-    if (buyers.length > 0) {
-      pipe.sadd(keys.buyers, ...buyers);
+    if (Object.keys(buyers).length > 0) {
+      pipe.hset(keys.buyers, buyers);
     }
 
     await pipe.exec();

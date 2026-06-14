@@ -27,6 +27,8 @@ export class PurchasesController {
 
   @Get(':userId')
   async check(@Param('id') saleId: string, @Param('userId') userId: string) {
-    return { saleId, userId, purchased: await this._purchases.hasPurchased(saleId, userId) };
+    const reservationId = await this._purchases.reservationFor(saleId, userId);
+
+    return { saleId, userId, purchased: reservationId !== null, reservationId };
   }
 }

@@ -70,7 +70,14 @@ describe('Gate', () => {
     expect(codes.filter((code) => code === GateCode.SUCCESS)).toHaveLength(1);
     expect(codes.filter((code) => code === GateCode.ALREADY_PURCHASED)).toHaveLength(199);
     expect(Number(await redis.get(keys.stock))).toBe(49); // only one unit consumed
-    expect(await redis.sismember(keys.buyers, 'repeat-buyer')).toBe(1);
+
+    // The buyers hash maps the buyer to the reservation id, and every duplicate reply
+    // echoes that same id — so the check endpoint and a retry see the original reservation.
+    const reservationId = results.find((result) => result[0] === GateCode.SUCCESS)?.[2];
+    expect(reservationId).toBeDefined();
+    expect(await redis.hget(keys.buyers, 'repeat-buyer')).toBe(reservationId);
+    const duplicates = results.filter((result) => result[0] === GateCode.ALREADY_PURCHASED);
+    expect(duplicates.every((result) => result[1] === reservationId)).toBe(true);
   });
 
   it('reports SOLD_OUT (not NOT_READY) when stock is exhausted', async () => {

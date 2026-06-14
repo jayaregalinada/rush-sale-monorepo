@@ -13,7 +13,8 @@ import type { SaleStatus } from './sale-status';
 /** Reservations already recorded in the Ledger for a sale — the rehydration input. */
 interface ReservationState {
   count: number;
-  buyers: string[];
+  /** buyerId → reservationId, as the Gate's buyers hash expects. */
+  buyers: Record<string, string>;
 }
 
 @Injectable()
@@ -97,22 +98,30 @@ export class SalesService {
     }
 
     try {
-      if (await this._gate.isSeeded(sale.id)) {
-        this._log.debug(`seed skipped for ${sale.id}: already live (AOF)`);
-
-        return;
-      }
-
-      const { count, buyers } = await this._loadReservationState(sale.id);
-      const remaining = Math.max(0, sale.initialStock - count);
-      await this._gate.seed(sale.id, remaining, buyers);
-
-      this._log.log(
-        `seeded ${sale.id}: remaining=${remaining} buyers=${buyers.length} (initial=${sale.initialStock})`,
-      );
+      await this._seedUnderLock(sale);
     } finally {
       await this._gate.releaseInitLock(sale.id);
     }
+  }
+
+  /**
+   * Seed the Gate from the Ledger — runs while the init lock is held. Skips when live state
+   * already exists so an intact AOF is never clobbered with the (lagging) Ledger count.
+   */
+  private async _seedUnderLock(sale: Sale): Promise<void> {
+    if (await this._gate.isSeeded(sale.id)) {
+      this._log.debug(`seed skipped for ${sale.id}: already live (AOF)`);
+
+      return;
+    }
+
+    const { count, buyers } = await this._loadReservationState(sale.id);
+    const remaining = Math.max(0, sale.initialStock - count);
+    await this._gate.seed(sale.id, remaining, buyers);
+
+    this._log.log(
+      `seeded ${sale.id}: remaining=${remaining} buyers=${count} (initial=${sale.initialStock})`,
+    );
   }
 
   /** Seed every known sale — run on boot and on Redis reconnect. */
@@ -126,11 +135,17 @@ export class SalesService {
 
   private async _loadReservationState(saleId: string): Promise<ReservationState> {
     const rows = await this._db
-      .select({ buyerId: reservationTable.buyerId })
+      .select({ id: reservationTable.id, buyerId: reservationTable.buyerId })
       .from(reservationTable)
       .where(eq(reservationTable.saleId, saleId));
 
-    return { count: rows.length, buyers: rows.map((row) => row.buyerId) };
+    const buyers: Record<string, string> = {};
+
+    for (const row of rows) {
+      buyers[row.buyerId] = row.id;
+    }
+
+    return { count: rows.length, buyers };
   }
 
   private async _loadFromDb(id: string): Promise<Sale | undefined> {

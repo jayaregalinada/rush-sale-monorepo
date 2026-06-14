@@ -50,9 +50,9 @@ export class PurchasesService {
     return this._toPurchaseResult(saleId, buyerId, result);
   }
 
-  /** Has this buyer secured a reservation? */
-  async hasPurchased(saleId: string, buyerId: string): Promise<boolean> {
-    return this._gate.hasBuyer(saleId, buyerId);
+  /** The buyer's reservation id if they secured one, else null. */
+  async reservationFor(saleId: string, buyerId: string): Promise<string | null> {
+    return this._gate.reservationOf(saleId, buyerId);
   }
 
   private _toPurchaseResult(saleId: string, buyerId: string, result: GateResult): PurchaseResult {

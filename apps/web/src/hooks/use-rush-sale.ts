@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { api } from '../api/api';
-import { SALE_ID } from '../constants/sale-id';
 import { OUTCOME_MESSAGES } from '../constants/outcome-messages';
+import { SALE_ID } from '../constants/sale-id';
 
 const STATUS_POLL_MS = 1000;
 

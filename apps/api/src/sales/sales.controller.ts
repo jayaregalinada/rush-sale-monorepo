@@ -1,8 +1,8 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
-import { SalesService } from './sales.service';
-import { createSaleSchema } from './create-sale-schema';
 import { ZodPipe } from '../common/zod-pipe';
 import type { CreateSaleDto } from './create-sale-dto';
+import { createSaleSchema } from './create-sale-schema';
+import { SalesService } from './sales.service';
 
 @Controller('sales')
 export class SalesController {

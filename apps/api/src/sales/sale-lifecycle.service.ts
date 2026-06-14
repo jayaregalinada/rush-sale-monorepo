@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { loadEnv } from '../config/load-env';
+import type { GateRedis } from '../redis/gate-redis';
 import { REDIS } from '../redis/redis';
 import { SalesService } from './sales.service';
-import type { GateRedis } from '../redis/gate-redis';
 
 /**
  * Owns Gate state population: seeds an optional default sale from env, rehydrates all

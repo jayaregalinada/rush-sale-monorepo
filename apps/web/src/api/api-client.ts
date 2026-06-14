@@ -1,5 +1,5 @@
-import type { SaleStatus } from '../types/sale-status';
 import type { PurchaseResult } from '../types/purchase-result';
+import type { SaleStatus } from '../types/sale-status';
 
 /**
  * The only place that talks to `fetch`. Feature code calls these typed methods instead of

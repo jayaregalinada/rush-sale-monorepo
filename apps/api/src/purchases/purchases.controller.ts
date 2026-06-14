@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
 import { ZodPipe } from '../common/zod-pipe';
 import { OUTCOME_STATUS } from '../domain/outcome-status';
 import { purchaseBodySchema } from './purchase-body-schema';
 import { PurchasesService } from './purchases.service';
-import type { FastifyReply } from 'fastify';
 
 @Controller('sales/:id/purchases')
 export class PurchasesController {

@@ -1,5 +1,5 @@
-import { index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { saleTable } from './sale-table';
 
 /**
@@ -15,9 +15,7 @@ export const reservationTable = pgTable(
       .notNull()
       .references(() => saleTable.id),
     buyerId: text('buyer_id').notNull(),
-    reservedAt: timestamp('reserved_at', { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
+    reservedAt: timestamp('reserved_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => [
     unique('reservations_sale_buyer_uq').on(t.saleId, t.buyerId),

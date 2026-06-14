@@ -2,10 +2,10 @@ import { Global, Module } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { loadEnv } from '../config/load-env';
+import type { Database } from './database';
 import { DB } from './db';
 import { PG_POOL } from './pg-pool';
 import { schema } from './schema';
-import type { Database } from './database';
 
 /**
  * Global DB module: one pg Pool, one Drizzle instance injectable as `DB`. Global so the

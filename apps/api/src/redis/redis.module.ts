@@ -1,10 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import Redis from 'ioredis';
 import { loadEnv } from '../config/load-env';
-import { GATE_LUA } from './gate-lua';
-import { REDIS } from './redis';
 import { Gate } from './gate';
+import { GATE_LUA } from './gate-lua';
 import type { GateRedis } from './gate-redis';
+import { REDIS } from './redis';
 
 /** The Gate Lua script binds three KEYS (stock, buyers, stream); the rest are ARGV. */
 const GATE_KEY_COUNT = 3;

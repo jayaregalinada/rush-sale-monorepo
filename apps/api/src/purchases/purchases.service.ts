@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Outcome } from '../domain/outcome';
+import type { PurchaseResult } from '../domain/purchase-result';
 import { Gate } from '../redis/gate';
 import { GateCode } from '../redis/gate-code';
-import { Outcome } from '../domain/outcome';
-import { SalesService } from '../sales/sales.service';
-import type { SaleStatus } from '../sales/sale-status';
 import type { GateResult } from '../redis/gate-result';
-import type { PurchaseResult } from '../domain/purchase-result';
+import type { SaleStatus } from '../sales/sale-status';
+import { SalesService } from '../sales/sales.service';
 
 /** A sale that isn't ACTIVE short-circuits before the Gate, with a window-specific outcome. */
 const NOT_ACTIVE_OUTCOME: Partial<Record<SaleStatus, Outcome>> = {

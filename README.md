@@ -157,7 +157,7 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 TypeScript · Turborepo + pnpm · NestJS on the **Fastify** adapter · **ioredis**
 (`defineCommand` registers the Gate as a typed `EVALSHA`) · **Drizzle** + Postgres ·
 Vite + React (Rolldown/Oxc) + TanStack Query · pino · Terminus health checks · Vitest +
-Testcontainers · k6.
+Testcontainers · k6 · Biome (one-config lint + format) · Docker / Compose.
 
 ```
 apps/
@@ -229,6 +229,16 @@ The integration suite is the correctness centrepiece: 1000 concurrent buyers aga
 stock yields **exactly 100 `SUCCESS`**, the rest `SOLD_OUT`; a 200-call retry storm from one
 buyer yields **exactly one `SUCCESS`** and 199 `ALREADY_PURCHASED`. Only a real Redis can run
 the Lua `EVAL` the proof depends on.
+
+## Lint & format
+
+A single root [Biome](https://biomejs.dev) config (`biome.json`) lints and formats the whole
+workspace — one toolchain, one pass:
+
+```bash
+pnpm lint      # biome check .  (lint + format diagnostics)
+pnpm format    # biome check --write .  (apply safe fixes)
+```
 
 ## Stress testing (k6)
 

@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { DB } from '../db/db';
-import { saleTable } from '../db/sale-table';
-import { reservationTable } from '../db/reservation-table';
-import { Gate } from '../redis/gate';
 import type { Database } from '../db/database';
-import type { Sale } from '../db/sale';
+import { DB } from '../db/db';
 import type { NewSale } from '../db/new-sale';
+import { reservationTable } from '../db/reservation-table';
+import type { Sale } from '../db/sale';
+import { saleTable } from '../db/sale-table';
+import { Gate } from '../redis/gate';
 import type { SaleStatus } from './sale-status';
 
 /** Reservations already recorded in the Ledger for a sale — the rehydration input. */

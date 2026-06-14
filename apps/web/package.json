@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\""
+    "lint": "biome check src"
   },
   "dependencies": {
     "@tanstack/react-query": "5.101.0",

@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { HealthIndicatorService } from '@nestjs/terminus';
 import { sql } from 'drizzle-orm';
-import { DB } from '../db/db';
-import { REDIS } from '../redis/redis';
 import type { Database } from '../db/database';
+import { DB } from '../db/db';
 import type { GateRedis } from '../redis/gate-redis';
+import { REDIS } from '../redis/redis';
 
 /** Health indicators for the two backing stores. */
 @Injectable()

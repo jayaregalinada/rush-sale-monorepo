@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
+import { SaleLifecycleService } from './sale-lifecycle.service';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
-import { SaleLifecycleService } from './sale-lifecycle.service';
 
 @Module({
   controllers: [SalesController],

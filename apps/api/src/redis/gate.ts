@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { REDIS } from './redis';
-import { saleKeys } from './sale-keys';
 import { GateCode } from './gate-code';
 import type { GateRedis } from './gate-redis';
 import type { GateResult } from './gate-result';
+import { REDIS } from './redis';
+import { saleKeys } from './sale-keys';
 
 /** How long a seeding node holds the init lock before it auto-expires. */
 const INIT_LOCK_TTL_SECONDS = 30;

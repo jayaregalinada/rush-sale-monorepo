@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { Database } from '../db/database';
 import { DB } from '../db/db';
-import { saleTable } from '../db/sale-table';
 import { reservationTable } from '../db/reservation-table';
+import { saleTable } from '../db/sale-table';
+import type { GateRedis } from '../redis/gate-redis';
 import { REDIS } from '../redis/redis';
 import { saleKeys } from '../redis/sale-keys';
 import { STREAM_GROUP } from '../redis/stream-group';
-import type { Database } from '../db/database';
-import type { GateRedis } from '../redis/gate-redis';
 
 const CONSUMER = `worker-${process.pid}`;
 const BLOCK_MS = 2000;
@@ -164,7 +164,14 @@ function parseEntryFields(fields: string[]): Record<string, string> {
   const record: Record<string, string> = {};
 
   for (let index = 0; index + 1 < fields.length; index += 2) {
-    record[fields[index]!] = fields[index + 1]!;
+    const name = fields[index];
+    const value = fields[index + 1];
+
+    if (name === undefined || value === undefined) {
+      continue;
+    }
+
+    record[name] = value;
   }
 
   return record;

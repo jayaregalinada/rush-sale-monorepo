@@ -8,7 +8,5 @@ export const saleTable = pgTable('sales', {
   initialStock: integer('initial_stock').notNull(),
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
   endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
 });

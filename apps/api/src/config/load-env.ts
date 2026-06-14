@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { envSchema } from './env-schema';
 import type { Env } from './env';
+import { envSchema } from './env-schema';
 
 // Best-effort: load a local .env (dev convenience). In containers no .env is present
 // (it's gitignored, never copied), so env is injected and this is a no-op.

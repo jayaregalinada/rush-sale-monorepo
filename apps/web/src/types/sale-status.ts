@@ -2,7 +2,7 @@
 export interface SaleStatus {
   saleId: string;
   product: string;
-  status: 'UPCOMING' | 'ACTIVE' | 'ENDED';
+  status: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'SOLD_OUT';
   initialStock: number;
   remaining: number | null;
   startsAt: string;

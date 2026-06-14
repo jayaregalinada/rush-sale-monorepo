@@ -6,4 +6,5 @@ export const STATUS_TONE: Record<SaleStatus['status'], BannerTone> = {
   UPCOMING: 'info',
   ACTIVE: 'success',
   ENDED: 'warning',
+  SOLD_OUT: 'error',
 };

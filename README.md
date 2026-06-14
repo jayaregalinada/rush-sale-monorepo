@@ -14,16 +14,17 @@ drains a Redis Stream into a Postgres **Ledger** (the system of record).
 
 ```mermaid
 flowchart LR
-    Web["Web SPA<br/>(Vite + React + React Query)"]
+    Web["Web SPA<br/>(Vite + React + TanStack Query)"]
+    Proxy["Edge proxy :5173<br/>nginx (prod) / Vite (dev)<br/>serves SPA · proxies /api/*"]
 
-    subgraph api_tier[API tier — scales horizontally]
+    subgraph api_tier[API tier — scales horizontally · stateless]
         API["API<br/>(NestJS on Fastify)"]
     end
     subgraph worker_tier[Worker tier — scales independently]
         Worker["Worker<br/>(Streams consumer group)"]
     end
     subgraph redis[Redis · AOF everysec · authoritative live state]
-        Gate["Gate (Lua script)<br/>stock counter · buyers SET"]
+        Gate["Gate (Lua script)<br/>stock counter · buyers HASH (buyer→reservationId)"]
         Stream["Reservation Stream"]
     end
     subgraph pg[Postgres · durable system of record]
@@ -31,15 +32,15 @@ flowchart LR
         Ledger["reservations (Ledger)<br/>UNIQUE(sale_id, buyer_id)"]
     end
 
-    Web -->|"POST /purchases"| API
-    Web -->|"GET /status"| API
+    Web -->|"same-origin /api/* (no CORS)"| Proxy
+    Proxy -->|"POST /purchases · GET /status · GET /purchases/:userId"| API
     API -->|"EVALSHA gate"| Gate
     Gate -->|"XADD on success"| Stream
     Worker -->|"XREADGROUP"| Stream
     Worker -->|"INSERT ON CONFLICT DO NOTHING"| Ledger
     API -.->|"seed / rehydrate (boot + reconnect)"| Gate
-    API -.->|"config + COUNT(reservations)"| Sales
-    API -.->|"rehydrate count"| Ledger
+    API -.->|"config + reservations"| Sales
+    API -.->|"rehydrate buyers + count"| Ledger
 ```
 
 - **Redis** is authoritative for *live* stock during an active sale (AOF, `appendfsync everysec`).
@@ -59,12 +60,12 @@ sequenceDiagram
 
     W->>A: POST /sales/:id/purchases { userId }
     A->>G: EVALSHA gate(saleId, userId)
-    Note over G: single-threaded, indivisible<br/>1 check buyer in SET<br/>2 check stock > 0<br/>3 DECR stock + SADD buyer<br/>4 XADD reservation
+    Note over G: single-threaded, indivisible<br/>1 check buyer in HASH<br/>2 check stock > 0<br/>3 DECR stock · XADD reservation · HSET buyer→reservationId
     alt stock key missing
         G-->>A: NOT_READY
         A-->>W: 503 NOT_READY
-    else buyer already in SET
-        G-->>A: ALREADY_PURCHASED
+    else buyer already in HASH
+        G-->>A: ALREADY_PURCHASED + reservationId
         A-->>W: 200 ALREADY_PURCHASED
     else stock == 0
         G-->>A: SOLD_OUT
@@ -118,7 +119,7 @@ sequenceDiagram
         A->>P: SELECT sale config + COUNT(reservations)
         P-->>A: initial_stock, reserved_count, buyers
         Note over A: remaining = initial_stock − reserved_count
-        A->>R: seed stock counter + buyers SET
+        A->>R: seed stock counter + buyers HASH (buyer→reservationId)
         Note over R: same code path as cold seed
     else lock held by peer
         Note over A: skip — another node is seeding
@@ -137,7 +138,7 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 | Redis crash (AOF intact) | restart → AOF replays live state | `appendfsync everysec`, ≤1s loss |
 | Redis state lost (AOF gone) | rehydrate from Ledger on boot | `remaining = initial − COUNT(reservations)` |
 | Duplicate Stream delivery | second Ledger insert is a no-op | `ON CONFLICT DO NOTHING` on natural key |
-| Double-click / retry buy | `ALREADY_PURCHASED`, not an error | buyer SET checked inside the Gate |
+| Double-click / retry buy | `ALREADY_PURCHASED` + original id, not an error | buyer HASH checked inside the Gate |
 
 > The same diagrams are mirrored in [`docs/architecture.md`](docs/architecture.md).
 
@@ -146,10 +147,10 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 | Concern | Mechanism |
 |---|---|
 | No oversell under spike | Single Lua script in single-threaded Redis — no race window |
-| One per user | Buyer SET checked *inside* the same Gate script |
+| One per user | Buyer HASH checked *inside* the same Gate script |
 | Exactly-once persistence | At-least-once Stream + `UNIQUE(sale_id, buyer_id)` + `ON CONFLICT DO NOTHING` |
 | DB outage | Worker stops acking; Gate keeps selling; Stream buffers until recovery |
-| Total Redis state loss | Rehydrate on boot: `remaining = initial_stock − COUNT(reservations)`, buyer SET rebuilt |
+| Total Redis state loss | Rehydrate on boot: `remaining = initial_stock − COUNT(reservations)`, buyer HASH rebuilt |
 | Crash window | AOF `everysec` loses ≤1s; the Ledger backstops a cold rebuild so it can't oversell |
 
 ## Stack
@@ -242,7 +243,7 @@ pnpm tools:up      # docker compose --profile tools up -d
 | UI | URL | Backs |
 |---|---|---|
 | **pgweb** | http://localhost:8081 | Postgres — `sales`, `reservations` (the Ledger) |
-| **redis-commander** | http://localhost:8082 | Redis — stock counter, buyers SET, reservation Stream |
+| **redis-commander** | http://localhost:8082 | Redis — stock counter, buyers HASH, reservation Stream |
 
 Both **auto-connect** to the running services (no login or manual registration). Stop them
 with `pnpm tools:down`. Useful flow: make a purchase, watch the `sale:*:stock` key drop and

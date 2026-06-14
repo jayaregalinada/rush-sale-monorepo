@@ -7,7 +7,7 @@ import { buy } from '../lib/common.js';
  *
  *   docker compose restart redis        # AOF replays → no oversell on recovery
  *   # or, to test cold rehydration:
- *   docker compose stop redis && docker volume rm rush-sale_redis-data && docker compose up -d redis
+ *   docker compose stop redis && rm -rf data/redis && docker compose up -d redis
  *
  * During the outage the API should fail cleanly (5xx / NOT_READY), never oversell.
  * After recovery + rehydration, SUCCESS resumes and the final invariant still holds:

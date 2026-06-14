@@ -124,7 +124,8 @@ services:
   # Redis web UI — http://localhost:8082
   redis-commander:
     profiles: ["tools"]
-    image: rediscommander/redis-commander:latest
+    # Pinned by digest — upstream is infrequently updated and only tags `:latest`.
+    image: rediscommander/redis-commander@sha256:19cd0c49f418779fa2822a0496c5e6516d0c792effc39ed20089e6268477e40a
     environment:
       REDIS_HOSTS: local:redis:6379
     # The image always serves on 8081 internally; publish it on host 8082.

@@ -28,6 +28,7 @@ export class SalesController {
       saleId: sale.id,
       product: sale.product,
       status: this._sales.statusOf(sale),
+      initialStock: sale.initialStock,
       remaining: await this._sales.remaining(sale.id),
       startsAt: sale.startsAt,
       endsAt: sale.endsAt,

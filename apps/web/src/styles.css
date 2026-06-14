@@ -1,0 +1,270 @@
+:root {
+  --color-bg: #0f172a;
+  --color-bg-accent: #1e293b;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-track: #f1f5f9;
+
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+
+  --tone-success: #16a34a;
+  --tone-success-bg: #dcfce7;
+  --tone-info: #2563eb;
+  --tone-info-bg: #dbeafe;
+  --tone-warning: #d97706;
+  --tone-warning-bg: #fef3c7;
+  --tone-error: #dc2626;
+  --tone-error-bg: #fee2e2;
+
+  --radius: 16px;
+  --radius-sm: 9px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--color-text);
+  background: radial-gradient(circle at 50% 0%, var(--color-bg-accent), var(--color-bg));
+  min-height: 100vh;
+}
+
+.page {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4rem 1rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  box-shadow: 0 24px 60px -20px rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.card__title {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.card__loading {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+/* Status badge ------------------------------------------------------------- */
+.badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+}
+
+.badge--success {
+  color: var(--tone-success);
+  background: var(--tone-success-bg);
+}
+
+.badge--info {
+  color: var(--tone-info);
+  background: var(--tone-info-bg);
+}
+
+.badge--warning {
+  color: var(--tone-warning);
+  background: var(--tone-warning-bg);
+}
+
+.badge--error {
+  color: var(--tone-error);
+  background: var(--tone-error-bg);
+}
+
+/* Countdown ---------------------------------------------------------------- */
+.countdown {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.countdown__label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.countdown__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* Stock meter -------------------------------------------------------------- */
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.meter__track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-track);
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent);
+  transition: width 0.4s ease;
+}
+
+.meter__fill--empty {
+  background: var(--tone-error);
+}
+
+.meter__counts {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.meter__remaining {
+  font-size: 1.25rem;
+}
+
+.meter__total {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+/* Buyer field -------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.field__input {
+  padding: 0.65rem 0.8rem;
+  font-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field__input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+}
+
+.field__input:disabled {
+  background: var(--color-track);
+  cursor: not-allowed;
+}
+
+/* Buy button --------------------------------------------------------------- */
+.buy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.buy__button {
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.buy__button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.buy__button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.buy__button:disabled {
+  background: var(--color-border);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.buy__reason {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* Outcome banner ----------------------------------------------------------- */
+.banner {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.banner--success {
+  color: var(--tone-success);
+  background: var(--tone-success-bg);
+}
+
+.banner--info {
+  color: var(--tone-info);
+  background: var(--tone-info-bg);
+}
+
+.banner--warning {
+  color: var(--tone-warning);
+  background: var(--tone-warning-bg);
+}
+
+.banner--error {
+  color: var(--tone-error);
+  background: var(--tone-error-bg);
+}

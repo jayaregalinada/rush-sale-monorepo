@@ -1,28 +1,58 @@
+import { BuyButton } from './components/buy-button';
+import { BuyerField } from './components/buyer-field';
+import { Countdown } from './components/countdown';
+import { OutcomeBanner } from './components/outcome-banner';
+import { StatusBadge } from './components/status-badge';
+import { StockMeter } from './components/stock-meter';
 import { useRushSale } from './hooks/use-rush-sale';
 
 export function App() {
-  const { sale, userId, message, canBuy, isLoading, isBuying, buy } = useRushSale();
+  const {
+    sale,
+    userId,
+    setUserId,
+    lastOutcome,
+    canBuy,
+    buyDisabledReason,
+    isLoading,
+    isBuying,
+    buy,
+  } = useRushSale();
 
   return (
-    <main style={{ fontFamily: 'system-ui', maxWidth: 480, margin: '4rem auto', padding: 16 }}>
-      <h1>Rush Sale</h1>
-      {isLoading && <p>Loading…</p>}
-      {sale && (
-        <>
-          <h2>{sale.product}</h2>
-          <p>
-            Status: <strong>{sale.status}</strong>
-          </p>
-          <p>
-            Remaining: <strong>{sale.remaining ?? '—'}</strong>
-          </p>
-          <p style={{ color: '#888', fontSize: 12 }}>buyer: {userId}</p>
-          <button type="button" onClick={buy} disabled={!canBuy} style={{ padding: '8px 16px' }}>
-            {isBuying ? 'Buying…' : 'Buy now'}
-          </button>
-          {message && <p style={{ marginTop: 16 }}>{message}</p>}
-        </>
-      )}
+    <main className="page">
+      <section className="card">
+        <header className="card__header">
+          <p className="card__eyebrow">Rush Sale</p>
+          {sale && <StatusBadge status={sale.status} />}
+        </header>
+
+        {isLoading && <p className="card__loading">Loading sale…</p>}
+
+        {sale && (
+          <>
+            <h1 className="card__title">{sale.product}</h1>
+
+            {sale.status === 'UPCOMING' && (
+              <Countdown label="Starts in" targetIso={sale.startsAt} />
+            )}
+            {sale.status === 'ACTIVE' && <Countdown label="Ends in" targetIso={sale.endsAt} />}
+
+            <StockMeter initialStock={sale.initialStock} remaining={sale.remaining} />
+
+            <BuyerField value={userId} disabled={isBuying} onChange={setUserId} />
+
+            <BuyButton
+              disabled={!canBuy}
+              isBuying={isBuying}
+              reason={buyDisabledReason}
+              onClick={buy}
+            />
+
+            {lastOutcome && <OutcomeBanner outcome={lastOutcome} />}
+          </>
+        )}
+      </section>
     </main>
   );
 }

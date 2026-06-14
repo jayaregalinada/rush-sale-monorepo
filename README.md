@@ -156,7 +156,7 @@ crash; the Ledger backstops it so a cold rebuild can never oversell (ADR-0004).
 
 TypeScript · Turborepo + pnpm · NestJS on the **Fastify** adapter · **ioredis**
 (`defineCommand` registers the Gate as a typed `EVALSHA`) · **Drizzle** + Postgres ·
-Vite + React (SWC) + TanStack Query · pino · Terminus health checks · Vitest +
+Vite + React (Rolldown/Oxc) + TanStack Query · pino · Terminus health checks · Vitest +
 Testcontainers · k6.
 
 ```

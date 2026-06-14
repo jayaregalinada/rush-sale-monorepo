@@ -5,8 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsx watch src/main.ts",
-    "dev:worker": "tsx watch src/worker.ts",
+    "dev": "node --watch -r @swc-node/register src/main.ts",
+    "dev:worker": "node --watch -r @swc-node/register src/worker.ts",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
@@ -38,9 +38,10 @@
     "@testcontainers/redis": "12.0.2",
     "@types/node": "catalog:",
     "@types/pg": "8.15.6",
+    "@swc-node/register": "1.11.1",
+    "@swc/core": "1.15.41",
     "drizzle-kit": "0.31.10",
     "testcontainers": "12.0.2",
-    "tsx": "4.20.6",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

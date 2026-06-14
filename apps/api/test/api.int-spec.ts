@@ -24,6 +24,7 @@ const SCHEMA_DDL = `
   CREATE TABLE sales (
     id text PRIMARY KEY,
     product text NOT NULL,
+    image_url text,
     initial_stock integer NOT NULL,
     starts_at timestamptz NOT NULL,
     ends_at timestamptz NOT NULL,

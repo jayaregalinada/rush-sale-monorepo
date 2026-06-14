@@ -31,6 +31,10 @@ export function App() {
 
         {sale && (
           <>
+            {sale.imageUrl && (
+              <img className="card__image" src={sale.imageUrl} alt={sale.product} />
+            )}
+
             <h1 className="card__title">{sale.product}</h1>
 
             {sale.status === 'UPCOMING' && (

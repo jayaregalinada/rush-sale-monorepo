@@ -13,7 +13,12 @@ export class SalesController {
   async create(@Body(new ZodPipe(createSaleSchema)) dto: CreateSaleDto) {
     const sale = await this._sales.createSale(dto);
 
-    return { id: sale.id, product: sale.product, initialStock: sale.initialStock };
+    return {
+      id: sale.id,
+      product: sale.product,
+      imageUrl: sale.imageUrl,
+      initialStock: sale.initialStock,
+    };
   }
 
   @Get(':id/status')
@@ -29,6 +34,7 @@ export class SalesController {
     return {
       saleId: sale.id,
       product: sale.product,
+      imageUrl: sale.imageUrl,
       status: this._sales.displayStatusOf(sale, remaining),
       initialStock: sale.initialStock,
       remaining,

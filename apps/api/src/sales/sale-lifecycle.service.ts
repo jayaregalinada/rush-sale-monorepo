@@ -50,6 +50,7 @@ export class SaleLifecycleService implements OnApplicationBootstrap {
     await this._sales.createSale({
       id: env.SEED_SALE_ID,
       product: env.SEED_SALE_PRODUCT,
+      imageUrl: env.SEED_SALE_IMAGE,
       initialStock: env.SEED_SALE_STOCK,
       startsAt: env.SEED_SALE_STARTS_AT,
       endsAt: env.SEED_SALE_ENDS_AT,

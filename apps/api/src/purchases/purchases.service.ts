@@ -1,13 +1,30 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { REDIS, type GateRedis } from '../redis/redis.module';
-import { saleKeys } from '../redis/keys';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Gate } from '../redis/gate';
+import { GateCode } from '../redis/gate-code';
+import { Outcome } from '../domain/outcome';
 import { SalesService } from '../sales/sales.service';
-import { Outcome, type PurchaseResult } from '../domain/outcome';
+import type { SaleStatus } from '../sales/sale-status';
+import type { GateResult } from '../redis/gate-result';
+import type { PurchaseResult } from '../domain/purchase-result';
+
+/** A sale that isn't ACTIVE short-circuits before the Gate, with a window-specific outcome. */
+const NOT_ACTIVE_OUTCOME: Partial<Record<SaleStatus, Outcome>> = {
+  UPCOMING: Outcome.NOT_ACTIVE_UPCOMING,
+  ENDED: Outcome.NOT_ACTIVE_ENDED,
+};
+
+/** Gate result code → client-facing purchase outcome (1:1). */
+const GATE_OUTCOME: Record<GateCode, Outcome> = {
+  [GateCode.SUCCESS]: Outcome.SUCCESS,
+  [GateCode.ALREADY_PURCHASED]: Outcome.ALREADY_PURCHASED,
+  [GateCode.SOLD_OUT]: Outcome.SOLD_OUT,
+  [GateCode.NOT_READY]: Outcome.NOT_READY,
+};
 
 @Injectable()
 export class PurchasesService {
   constructor(
-    @Inject(REDIS) private readonly redis: GateRedis,
+    private readonly gate: Gate,
     private readonly sales: SalesService,
   ) {}
 
@@ -17,46 +34,31 @@ export class PurchasesService {
    */
   async purchase(saleId: string, buyerId: string): Promise<PurchaseResult> {
     const sale = await this.sales.getSale(saleId);
-    if (!sale) throw new NotFoundException(`unknown sale: ${saleId}`);
-
-    const status = this.sales.statusOf(sale);
-    if (status === 'UPCOMING') {
-      return { outcome: Outcome.NOT_ACTIVE_UPCOMING, saleId, buyerId };
-    }
-    if (status === 'ENDED') {
-      return { outcome: Outcome.NOT_ACTIVE_ENDED, saleId, buyerId };
+    if (!sale) {
+      throw new NotFoundException(`unknown sale: ${saleId}`);
     }
 
-    const keys = saleKeys(saleId);
-    const [code, ...rest] = await this.redis.rushGate(
-      keys.stock,
-      keys.buyers,
-      keys.stream,
-      buyerId,
-      saleId,
-    );
-
-    switch (code) {
-      case 'SUCCESS':
-        return {
-          outcome: Outcome.SUCCESS,
-          saleId,
-          buyerId,
-          remaining: Number(rest[0]),
-          reservationId: String(rest[1]),
-        };
-      case 'ALREADY_PURCHASED':
-        return { outcome: Outcome.ALREADY_PURCHASED, saleId, buyerId };
-      case 'SOLD_OUT':
-        return { outcome: Outcome.SOLD_OUT, saleId, buyerId, remaining: 0 };
-      case 'NOT_READY':
-      default:
-        return { outcome: Outcome.NOT_READY, saleId, buyerId };
+    const windowOutcome = NOT_ACTIVE_OUTCOME[this.sales.statusOf(sale)];
+    if (windowOutcome) {
+      return { outcome: windowOutcome, saleId, buyerId };
     }
+
+    const result = await this.gate.reserve(saleId, buyerId);
+    return this.toPurchaseResult(saleId, buyerId, result);
   }
 
-  /** Has this buyer secured a reservation? Reads the Gate's buyer SET. */
+  /** Has this buyer secured a reservation? */
   async hasPurchased(saleId: string, buyerId: string): Promise<boolean> {
-    return (await this.redis.sismember(saleKeys(saleId).buyers, buyerId)) === 1;
+    return this.gate.hasBuyer(saleId, buyerId);
+  }
+
+  private toPurchaseResult(saleId: string, buyerId: string, result: GateResult): PurchaseResult {
+    return {
+      outcome: GATE_OUTCOME[result.code],
+      saleId,
+      buyerId,
+      remaining: result.remaining,
+      reservationId: result.reservationId,
+    };
   }
 }

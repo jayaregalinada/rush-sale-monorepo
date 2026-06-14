@@ -12,5 +12,3 @@ export const createSaleSchema = z
     message: 'endsAt must be after startsAt',
     path: ['endsAt'],
   });
-
-export type CreateSaleDto = z.infer<typeof createSaleSchema>;

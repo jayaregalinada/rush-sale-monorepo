@@ -6,7 +6,10 @@ import {
 } from '@nestjs/platform-fastify';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { loadEnv } from './config/env';
+import { loadEnv } from './config/load-env';
+
+/** Bind on all interfaces so the API is reachable from inside the docker network. */
+const LISTEN_HOST = '0.0.0.0';
 
 async function bootstrap() {
   const env = loadEnv();
@@ -19,7 +22,7 @@ async function bootstrap() {
   app.enableCors();
   app.enableShutdownHooks();
 
-  await app.listen(env.PORT, '0.0.0.0');
+  await app.listen(env.PORT, LISTEN_HOST);
   app.get(Logger).log(`API listening on :${env.PORT}`);
 }
 

@@ -1,15 +1,13 @@
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
-import type { FastifyReply } from 'fastify';
-import { z } from 'zod';
-import { ZodPipe } from '../common/zod.pipe';
-import { OUTCOME_STATUS } from '../domain/outcome';
+import { ZodPipe } from '../common/zod-pipe';
+import { OUTCOME_STATUS } from '../domain/outcome-status';
+import { purchaseBodySchema } from './purchase-body-schema';
 import { PurchasesService } from './purchases.service';
-
-const purchaseBody = z.object({ userId: z.string().min(1).max(128) });
+import type { FastifyReply } from 'fastify';
 
 @Controller('sales/:id/purchases')
 export class PurchasesController {
-  constructor(private readonly purchases: PurchasesService) {}
+  constructor(private readonly purchases: PurchasesService) { }
 
   /**
    * Attempt to secure the item. No auth in this exercise → buyer identity is the
@@ -18,11 +16,12 @@ export class PurchasesController {
   @Post()
   async buy(
     @Param('id') saleId: string,
-    @Body(new ZodPipe(purchaseBody)) body: { userId: string },
+    @Body(new ZodPipe(purchaseBodySchema)) body: { userId: string },
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
     const result = await this.purchases.purchase(saleId, body.userId);
     res.status(OUTCOME_STATUS[result.outcome]);
+
     return result;
   }
 

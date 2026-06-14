@@ -1,20 +1,13 @@
 import { Global, Module } from '@nestjs/common';
 import Redis from 'ioredis';
-import { loadEnv } from '../config/env';
-import { GATE_LUA } from './gate.lua';
+import { loadEnv } from '../config/load-env';
+import { GATE_LUA } from './gate-lua';
+import { REDIS } from './redis';
+import { Gate } from './gate';
+import type { GateRedis } from './gate-redis';
 
-export const REDIS = Symbol('REDIS');
-
-/** ioredis augmented with the Gate registered as a typed custom command (auto EVALSHA). */
-export type GateRedis = Redis & {
-  rushGate(
-    stockKey: string,
-    buyersKey: string,
-    streamKey: string,
-    buyerId: string,
-    saleId: string,
-  ): Promise<[string, ...(string | number)[]]>;
-};
+/** The Gate Lua script binds three KEYS (stock, buyers, stream); the rest are ARGV. */
+const GATE_KEY_COUNT = 3;
 
 function createRedis(): GateRedis {
   const client = new Redis(loadEnv().REDIS_URL, {
@@ -22,14 +15,15 @@ function createRedis(): GateRedis {
     enableReadyCheck: true,
   }) as GateRedis;
 
-  // 3 KEYS, rest ARGV. defineCommand handles SCRIPT LOAD + EVALSHA transparently.
-  client.defineCommand('rushGate', { numberOfKeys: 3, lua: GATE_LUA });
+  // defineCommand handles SCRIPT LOAD + EVALSHA transparently.
+  client.defineCommand('rushGate', { numberOfKeys: GATE_KEY_COUNT, lua: GATE_LUA });
+
   return client;
 }
 
 @Global()
 @Module({
-  providers: [{ provide: REDIS, useFactory: createRedis }],
-  exports: [REDIS],
+  providers: [{ provide: REDIS, useFactory: createRedis }, Gate],
+  exports: [REDIS, Gate],
 })
 export class RedisModule {}

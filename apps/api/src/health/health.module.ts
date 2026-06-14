@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TerminusModule } from '@nestjs/terminus';
-import { DepHealth, HealthController } from './health.controller';
+import { HealthController } from './health.controller';
+import { DepHealth } from './dep-health';
 
 @Module({
   imports: [TerminusModule],

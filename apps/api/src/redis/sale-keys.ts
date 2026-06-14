@@ -5,5 +5,3 @@ export const saleKeys = (saleId: string) => ({
   stream: `sale:${saleId}:reservations`,
   initLock: `sale:${saleId}:init-lock`,
 });
-
-export const STREAM_GROUP = 'ledger-writers';

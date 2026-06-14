@@ -1,15 +1,16 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import { loadEnv } from '../config/env';
-import { REDIS, type GateRedis } from '../redis/redis.module';
+import { loadEnv } from '../config/load-env';
+import { REDIS } from '../redis/redis';
 import { SalesService } from './sales.service';
+import type { GateRedis } from '../redis/gate-redis';
 
 /**
  * Owns Gate state population: seeds an optional default sale from env, rehydrates all
  * sales on boot, and re-rehydrates whenever Redis reconnects (state may have been lost).
  */
 @Injectable()
-export class SaleLifecycle implements OnApplicationBootstrap {
-  private readonly log = new Logger(SaleLifecycle.name);
+export class SaleLifecycleService implements OnApplicationBootstrap {
+  private readonly log = new Logger(SaleLifecycleService.name);
 
   constructor(
     private readonly sales: SalesService,

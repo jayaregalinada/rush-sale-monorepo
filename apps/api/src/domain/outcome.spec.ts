@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Outcome, OUTCOME_STATUS } from './outcome';
+import { Outcome } from './outcome';
+import { OUTCOME_STATUS } from './outcome-status';
 
 describe('outcome → HTTP status', () => {
   it('maps every outcome to a status', () => {

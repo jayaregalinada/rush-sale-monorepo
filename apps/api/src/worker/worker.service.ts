@@ -1,14 +1,22 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { DB, type Database } from '../db/db.module';
-import { reservations, sales } from '../db/schema';
-import { REDIS, type GateRedis } from '../redis/redis.module';
-import { saleKeys, STREAM_GROUP } from '../redis/keys';
+import { DB } from '../db/db';
+import { saleTable } from '../db/sale-table';
+import { reservationTable } from '../db/reservation-table';
+import { REDIS } from '../redis/redis';
+import { saleKeys } from '../redis/sale-keys';
+import { STREAM_GROUP } from '../redis/stream-group';
+import type { Database } from '../db/database';
+import type { GateRedis } from '../redis/gate-redis';
 
 const CONSUMER = `worker-${process.pid}`;
 const BLOCK_MS = 2000;
 const BATCH = 128;
 const CLAIM_IDLE_MS = 30_000; // reclaim entries pending longer than this from a dead consumer
 const REFRESH_MS = 5000; // how often to discover newly-created sales / streams
+const IDLE_POLL_MS = 1000; // poll cadence while no streams exist yet
+const BACKOFF_MS = 1000; // pause after a failed drain iteration
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Drains per-sale reservation Streams into the Ledger. At-least-once: the insert is
@@ -24,7 +32,7 @@ export class WorkerService {
   constructor(
     @Inject(DB) private readonly db: Database,
     @Inject(REDIS) private readonly redis: GateRedis,
-  ) {}
+  ) { }
 
   async run(): Promise<void> {
     this.running = true;
@@ -37,16 +45,18 @@ export class WorkerService {
         await this.refreshStreams();
         lastRefresh = Date.now();
       }
+
       if (this.streams.size === 0) {
-        await new Promise((r) => setTimeout(r, 1000)); // idle poll for the first sale
+        await sleep(IDLE_POLL_MS); // wait for the first sale to be created
         continue;
       }
+
       try {
         await this.reclaimStale();
         await this.readBatch();
       } catch (err) {
         this.log.error('drain iteration failed; backing off', err as Error);
-        await new Promise((r) => setTimeout(r, 1000));
+        await sleep(BACKOFF_MS);
       }
     }
   }
@@ -57,14 +67,19 @@ export class WorkerService {
 
   /** Discover sales, create the consumer group on each stream (idempotent). */
   private async refreshStreams() {
-    const rows = await this.db.select({ id: sales.id }).from(sales);
+    const rows = await this.db.select({ id: saleTable.id }).from(saleTable);
     for (const { id } of rows) {
       const key = saleKeys(id).stream;
-      if (this.streams.has(key)) continue;
+      if (this.streams.has(key)) {
+        continue;
+      }
+
       try {
         await this.redis.xgroup('CREATE', key, STREAM_GROUP, '0', 'MKSTREAM');
       } catch (e) {
-        if (!(e as Error).message.includes('BUSYGROUP')) throw e;
+        if (!(e as Error).message.includes('BUSYGROUP')) {
+          throw e;
+        }
       }
       this.streams.set(key, id);
     }
@@ -104,12 +119,18 @@ export class WorkerService {
         'COUNT',
         BATCH,
       )) as [string, [string, string[]][], string[]];
-      if (entries?.length) await this.persist(streamKey, entries);
+
+      if (entries?.length) {
+        await this.persist(streamKey, entries);
+      }
     }
   }
 
   private async persist(streamKey: string, entries: [string, string[]][]) {
-    if (!entries?.length) return;
+    if (!entries?.length) {
+      return;
+    }
+
     for (const [streamId, fields] of entries) {
       const f = fieldsToObject(fields);
       const saleId = f.saleId;
@@ -121,7 +142,7 @@ export class WorkerService {
       }
       // Idempotent on (sale_id, buyer_id); the stream id is the row id for traceability.
       await this.db
-        .insert(reservations)
+        .insert(reservationTable)
         .values({ id: streamId, saleId, buyerId })
         .onConflictDoNothing();
       await this.redis.xack(streamKey, STREAM_GROUP, streamId);
@@ -131,6 +152,9 @@ export class WorkerService {
 
 function fieldsToObject(fields: string[]): Record<string, string> {
   const o: Record<string, string> = {};
-  for (let i = 0; i + 1 < fields.length; i += 2) o[fields[i]!] = fields[i + 1]!;
+  for (let i = 0; i + 1 < fields.length; i += 2) {
+    o[fields[i]!] = fields[i + 1]!;
+  }
+
   return o;
 }

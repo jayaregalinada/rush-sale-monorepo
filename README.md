@@ -269,7 +269,17 @@ pnpm window        # 3: outcomes match the live sale window (upcoming/active/end
 pnpm fault-redis   # 4: kill Redis mid-run (see script) — fails clean, recovers, no oversell
 ```
 
-**Expected outcome (the invariant), checked against the DB after any run:**
+Each scenario encodes its pass/fail as **k6 thresholds**, so a run exits non-zero the moment
+an invariant breaks — no eyeballing required:
+
+- **herd** — `outcome_success ≤ 1000` (`abortOnFail`: oversell kills the run instantly),
+  `p95 < 150ms`, `p99 < 250ms`, `http_req_failed < 1%`, `checks > 99%`.
+- **one-per-user** — `outcome_success ≤ 50` (`abortOnFail`: one per buyer), `checks > 99%`.
+- **window** — `checks > 99%` that every outcome agrees with the live sale window.
+- **fault-redis** — failures tolerated during the outage (`http_req_failed < 40%`), but the
+  no-oversell check must hold on **every** request (`checks > 99.9%`, `abortOnFail`).
+
+**Cross-checked against the DB after any run (the invariant, independent of k6):**
 
 ```sql
 -- never more reservations than stock, and no buyer twice:

@@ -23,8 +23,13 @@ export const options = {
     },
   },
   thresholds: {
+    // Hard invariant: SUCCESS can never exceed initial stock. Abort the run if it does.
+    outcome_success: [{ threshold: 'count<=1000', abortOnFail: true }],
+    // Hot path stays fast and clean under the spike.
     http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(99)<250'],
+    http_req_duration: ['p(95)<150', 'p(99)<250', 'max<2000'],
+    // Every iteration must reach a decisive, server-error-free outcome.
+    checks: ['rate>0.99'],
   },
 };
 
@@ -33,7 +38,6 @@ export default function () {
   const { res, outcome } = buy(userId);
   check(res, {
     'no server error': (r) => r.status < 500,
-    'decisive outcome': () =>
-      ['SUCCESS', 'SOLD_OUT', 'ALREADY_PURCHASED'].includes(outcome),
+    'decisive outcome': () => ['SUCCESS', 'SOLD_OUT', 'ALREADY_PURCHASED'].includes(outcome),
   });
 }

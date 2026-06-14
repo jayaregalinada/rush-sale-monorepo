@@ -25,8 +25,10 @@ export const options = {
     },
   },
   thresholds: {
-    // We tolerate errors during the injected outage; the invariant check is the real gate.
+    // We tolerate request failures during the injected outage...
     http_req_failed: ['rate<0.40'],
+    // ...but the no-oversell signal must hold on every single request, outage or not.
+    checks: [{ threshold: 'rate>0.999', abortOnFail: true }],
   },
 };
 

@@ -15,11 +15,9 @@ export const outcomes = {
 };
 
 export function buy(userId) {
-  const res = http.post(
-    `${BASE}/sales/${SALE_ID}/purchases`,
-    JSON.stringify({ userId }),
-    { headers: { 'Content-Type': 'application/json' } },
-  );
+  const res = http.post(`${BASE}/sales/${SALE_ID}/purchases`, JSON.stringify({ userId }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
   let outcome = 'NOT_READY';
   try {
     outcome = res.json('outcome') || outcome;

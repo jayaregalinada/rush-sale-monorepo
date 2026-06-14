@@ -15,6 +15,12 @@ export const options = {
       duration: '40s',
     },
   },
+  thresholds: {
+    // The outcome must always agree with the live sale window.
+    checks: ['rate>0.99'],
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(99)<250'],
+  },
 };
 
 export default function () {

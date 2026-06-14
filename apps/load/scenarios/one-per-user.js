@@ -17,7 +17,11 @@ export const options = {
     },
   },
   thresholds: {
-    'outcome_success': ['count<=50'], // at most one SUCCESS per buyer
+    // Hard invariant: 50 buyers ⇒ at most 50 SUCCESS total (one each). Abort if exceeded.
+    outcome_success: [{ threshold: 'count<=50', abortOnFail: true }],
+    // Every retry resolves to a known, non-error outcome.
+    http_req_failed: ['rate<0.01'],
+    checks: ['rate>0.99'],
   },
 };
 

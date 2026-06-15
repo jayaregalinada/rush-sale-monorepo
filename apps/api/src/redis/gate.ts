@@ -18,7 +18,7 @@ const KEY_EXISTS = 1;
  */
 @Injectable()
 export class Gate {
-  constructor(@Inject(REDIS) private readonly _redis: GateRedis) { }
+  constructor(@Inject(REDIS) private readonly _redis: GateRedis) {}
 
   /** Atomically attempt a reservation (the Lua Gate). */
   async reserve(saleId: string, buyerId: string): Promise<GateResult> {

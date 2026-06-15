@@ -12,7 +12,7 @@ const LOCK_ACQUIRED = 'OK';
 const KEY_EXISTS = 1;
 
 /**
- * Owns the Gate's live Redis state — the single concurrency-control surface. Every
+ * Owns the Gate's live Redis state - the single concurrency-control surface. Every
  * read/write of stock, the buyer set, the reservation stream and the init lock goes
  * through here, so the rest of the app depends on this abstraction, not on ioredis.
  */

@@ -2,7 +2,7 @@ import { check } from 'k6';
 import { buy } from '../lib/common.js';
 
 /**
- * Scenario 1 — Thundering herd.
+ * Scenario 1 - Thundering herd.
  * A huge burst of unique buyers hits the Gate at once. Proves the hot path holds
  * up under spike load and that SUCCESS count never exceeds initial stock.
  * Correctness is confirmed out-of-band: COUNT(reservations) == initial_stock.

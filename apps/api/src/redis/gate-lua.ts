@@ -2,7 +2,7 @@ import { GateCode } from './gate-code';
 
 /**
  * The Gate. One indivisible operation; Redis is single-threaded so Oversell and
- * double-buys are structurally impossible — there is no race window (ADR-0001).
+ * double-buys are structurally impossible - there is no race window (ADR-0001).
  *
  *   KEYS[1] = stock counter   KEYS[2] = buyers HASH (buyerId → reservationId)   KEYS[3] = reservation stream
  *   ARGV[1] = buyerId         ARGV[2] = saleId

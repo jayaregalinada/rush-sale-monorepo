@@ -55,7 +55,7 @@ describe('Gate', () => {
     expect(codes.filter((code) => code === GateCode.SUCCESS)).toHaveLength(STOCK);
     expect(codes.filter((code) => code === GateCode.SOLD_OUT)).toHaveLength(BUYERS - STOCK);
     expect(Number(await redis.get(keys.stock))).toBe(0);
-    // One stream entry per real reservation — the worker's input is exactly the winners.
+    // One stream entry per real reservation - the worker's input is exactly the winners.
     expect(await redis.xlen(keys.stream)).toBe(STOCK);
   });
 
@@ -72,7 +72,7 @@ describe('Gate', () => {
     expect(Number(await redis.get(keys.stock))).toBe(49); // only one unit consumed
 
     // The buyers hash maps the buyer to the reservation id, and every duplicate reply
-    // echoes that same id — so the check endpoint and a retry see the original reservation.
+    // echoes that same id - so the check endpoint and a retry see the original reservation.
     const reservationId = results.find((result) => result[0] === GateCode.SUCCESS)?.[2];
     expect(reservationId).toBeDefined();
     expect(await redis.hget(keys.buyers, 'repeat-buyer')).toBe(reservationId);

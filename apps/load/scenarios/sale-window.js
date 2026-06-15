@@ -2,7 +2,7 @@ import { check, sleep } from 'k6';
 import { buy, status } from '../lib/common.js';
 
 /**
- * Scenario 3 — Sale window enforcement.
+ * Scenario 3 - Sale window enforcement.
  * Steady traffic against a sale whose window you control. Reads the live status and
  * asserts the outcome matches: UPCOMING → NOT_ACTIVE_UPCOMING, ENDED → NOT_ACTIVE_ENDED,
  * ACTIVE → a real decision. Run against a sale configured to flip mid-test.

@@ -2,7 +2,7 @@ import { check } from 'k6';
 import { buy } from '../lib/common.js';
 
 /**
- * Scenario 2 — One-per-user under contention.
+ * Scenario 2 - One-per-user under contention.
  * A small pool of buyers each hammers Buy many times concurrently. Proves a buyer
  * can never hold two reservations: first call SUCCESS, every retry ALREADY_PURCHASED,
  * never a second SUCCESS for the same id.

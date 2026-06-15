@@ -11,7 +11,7 @@ import { Gate } from '../redis/gate';
 import type { SaleDisplayStatus } from './sale-display-status';
 import type { SaleStatus } from './sale-status';
 
-/** Reservations already recorded in the Ledger for a sale — the rehydration input. */
+/** Reservations already recorded in the Ledger for a sale - the rehydration input. */
 interface ReservationState {
   count: number;
   /** buyerId → reservationId, as the Gate's buyers hash expects. */
@@ -30,9 +30,9 @@ const UNKNOWN_SALE_CACHE_TTL_MS = 5_000;
 @Injectable()
 export class SalesService {
   private readonly _log = new Logger(SalesService.name);
-  /** Sale config is small and rarely changes — cache it to keep the purchase path off Postgres. */
+  /** Sale config is small and rarely changes - cache it to keep the purchase path off Postgres. */
   private readonly _cache = new Map<string, Sale>();
-  /** Ids confirmed absent from Postgres — short-circuits repeat lookups off the DB. */
+  /** Ids confirmed absent from Postgres - short-circuits repeat lookups off the DB. */
   private readonly _unknownSales = new BoundedTtlSet(
     UNKNOWN_SALE_CACHE_CAPACITY,
     UNKNOWN_SALE_CACHE_TTL_MS,
@@ -136,7 +136,7 @@ export class SalesService {
   }
 
   /**
-   * Seed the Gate from the Ledger — runs while the init lock is held. Skips when live state
+   * Seed the Gate from the Ledger - runs while the init lock is held. Skips when live state
    * already exists so an intact AOF is never clobbered with the (lagging) Ledger count.
    */
   private async _seedUnderLock(sale: Sale): Promise<void> {
@@ -155,7 +155,7 @@ export class SalesService {
     );
   }
 
-  /** Seed every known sale — run on boot and on Redis reconnect. */
+  /** Seed every known sale - run on boot and on Redis reconnect. */
   async rehydrateAll(): Promise<void> {
     const all = await this._db.select().from(saleTable);
 

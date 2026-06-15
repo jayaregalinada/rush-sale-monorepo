@@ -1,12 +1,12 @@
 services:
   redis:
     image: redis:7-alpine
-    # AOF on, fsync every second — authoritative live state with ≤1s crash window (ADR-0001).
+    # AOF on, fsync every second - authoritative live state with ≤1s crash window (ADR-0001).
     command: redis-server --appendonly yes --appendfsync everysec
     ports:
       # Bound to IPv4 loopback so `localhost` resolves cleanly on macOS (the default
       # publish also binds [::], whose IPv6 loopback resets under Docker Desktop/OrbStack).
-      # Loopback-only keeps the port off the LAN — correct for local-dev.
+      # Loopback-only keeps the port off the LAN - correct for local-dev.
       - "127.0.0.1:6379:6379"
     volumes:
       # Bind mount: AOF + RDB live under ./data/redis in the project, not a named volume.
@@ -79,7 +79,7 @@ services:
       migrate:
         condition: service_completed_successfully
 
-  # Same image as the api, different entrypoint — drains the Stream into the Ledger.
+  # Same image as the api, different entrypoint - drains the Stream into the Ledger.
   worker:
     profiles: ["app"]
     build:
@@ -111,7 +111,7 @@ services:
   #   docker compose --profile tools up -d            (or: pnpm tools:up)
   # Both auto-connect, so there is no login/registration step.
 
-  # Postgres web UI — http://localhost:8081
+  # Postgres web UI - http://localhost:8081
   pgweb:
     profiles: ["tools"]
     image: sosedoff/pgweb:0.16.2
@@ -123,13 +123,13 @@ services:
       postgres:
         condition: service_healthy
 
-  # Redis web UI — http://localhost:8082
+  # Redis web UI - http://localhost:8082
   redis-commander:
     profiles: ["tools"]
-    # Pinned by digest — upstream is infrequently updated and only tags `:latest`.
+    # Pinned by digest - upstream is infrequently updated and only tags `:latest`.
     image: rediscommander/redis-commander@sha256:19cd0c49f418779fa2822a0496c5e6516d0c792effc39ed20089e6268477e40a
     # Image is amd64-only; declare it so Docker emulates quietly on arm64 (Apple
-    # Silicon) instead of warning. Dev-only admin UI — emulation is fine.
+    # Silicon) instead of warning. Dev-only admin UI - emulation is fine.
     platform: linux/amd64
     environment:
       REDIS_HOSTS: local:redis:6379
@@ -141,7 +141,7 @@ services:
         condition: service_healthy
 
   # --- Load testing (profile "load") -------------------------------------------
-  # Run k6 in a container — no global k6 install needed. The app stack must already
+  # Run k6 in a container - no global k6 install needed. The app stack must already
   # be running and seeded (`pnpm up`); k6 joins the same network and hits the api
   # service directly at http://api:3000.
   #   pnpm load:herd

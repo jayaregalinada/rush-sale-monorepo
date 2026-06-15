@@ -9,8 +9,8 @@ const STATUS_POLL_MS = 1000;
 const EMPTY_STOCK = 0;
 
 /**
- * Groups all Rush Sale state — buyer identity, live status polling, the purchase mutation
- * and the resulting outcome — plus the reason a purchase is currently unavailable, so the
+ * Groups all Rush Sale state - buyer identity, live status polling, the purchase mutation
+ * and the resulting outcome - plus the reason a purchase is currently unavailable, so the
  * component is left as pure composition/markup.
  */
 export function useRushSale() {

@@ -144,7 +144,7 @@ export class WorkerService {
       const buyerId = parsed.buyerId;
 
       if (!saleId || !buyerId) {
-        this._log.warn(`malformed entry ${streamId} on ${streamKey} — acking to skip`);
+        this._log.warn(`malformed entry ${streamId} on ${streamKey} - acking to skip`);
         await this._redis.xack(streamKey, STREAM_GROUP, streamId);
         continue;
       }

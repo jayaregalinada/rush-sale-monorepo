@@ -2,7 +2,7 @@ import { check, sleep } from 'k6';
 import { buy } from '../lib/common.js';
 
 /**
- * Scenario 4 — Redis fault injection (resilience + recovery).
+ * Scenario 4 - Redis fault injection (resilience + recovery).
  * Drive steady load, then kill Redis mid-run:
  *
  *   docker compose restart redis        # AOF replays → no oversell on recovery (warm)
@@ -12,20 +12,20 @@ import { buy } from '../lib/common.js';
  * During the outage the API must fail cleanly (5xx / NOT_READY), never garbage. After
  * recovery it rehydrates and SUCCESS resumes.
  *
- * No-oversell invariant — two layers, because the *physical* invariant lives in the Ledger:
+ * No-oversell invariant - two layers, because the *physical* invariant lives in the Ledger:
  *   - In-band (this file): `outcome_success <= SEED_SALE_STOCK`, the count of 201 responses.
  *     This holds tightly on the WARM path (AOF replays, ≤1s loss). On a COLD wipe it can
- *     legitimately tick a few over stock — in-flight reservations XADD'd but not yet drained
+ *     legitimately tick a few over stock - in-flight reservations XADD'd but not yet drained
  *     when the volume was deleted were real 201s, now lost. That is data loss, not oversell.
  *   - Out-of-band (the real proof): `COUNT(reservations) <= initial_stock` with no duplicate
- *     (sale_id, buyer_id). The Ledger can never exceed stock on either path — see
+ *     (sale_id, buyer_id). The Ledger can never exceed stock on either path - see
  *     docs/load-testing.md → "The independent cross-check".
  */
 const SEED_SALE_STOCK = Number(__ENV.SEED_SALE_STOCK || 1000);
 
 // Set COLD_WIPE=1 when running the volume-deletion variant. A cold wipe loses in-flight
 // 201s that were XADD'd but not yet drained, so the in-band `outcome_success` count can
-// legitimately tick a few over stock — that is data loss, not oversell. Gate the in-band
+// legitimately tick a few over stock - that is data loss, not oversell. Gate the in-band
 // guard off on that path and rely solely on the Ledger SQL cross-check; default (warm
 // restart) keeps the hard guard on.
 const COLD_WIPE = __ENV.COLD_WIPE === '1';
@@ -43,7 +43,7 @@ const thresholds = {
 };
 
 // Hard no-oversell guard on the WARM recovery path: 201s never exceed seeded stock.
-// Skipped under COLD_WIPE (legit data loss, not oversell — proven by the SQL cross-check).
+// Skipped under COLD_WIPE (legit data loss, not oversell - proven by the SQL cross-check).
 if (!COLD_WIPE) {
   thresholds.outcome_success = [{ threshold: `count<=${SEED_SALE_STOCK}`, abortOnFail: true }];
 }

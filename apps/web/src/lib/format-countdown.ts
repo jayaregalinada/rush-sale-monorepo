@@ -6,7 +6,7 @@ const HOURS_PER_DAY = 24;
 /**
  * Renders a millisecond span as a compact `2d 03h 04m 05s` countdown, dropping
  * leading units that are zero so short spans stay readable. Negative spans clamp
- * to zero — the caller decides what "elapsed" means.
+ * to zero - the caller decides what "elapsed" means.
  */
 export function formatCountdown(milliseconds: number): string {
   const clamped = Math.max(0, milliseconds);

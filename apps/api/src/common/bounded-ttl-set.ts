@@ -3,7 +3,7 @@ type NowFn = () => number;
 
 /**
  * A fixed-capacity set of string keys, each expiring after a TTL. Used for negative caching
- * — remembering "this id is unknown" — without unbounded growth: once at capacity the oldest
+ * - remembering "this id is unknown" - without unbounded growth: once at capacity the oldest
  * key is evicted, so a flood of distinct keys can never exhaust memory. The TTL bounds
  * staleness, so a key that becomes valid later is re-checked once its entry expires.
  */

@@ -19,7 +19,7 @@ const RUSH_SALE_ID = 'e2e-rush';
 const RUSH_STOCK = 10;
 const RUSH_BUYERS = 200;
 
-/** The schema the app expects — mirrors the Drizzle table defs (test bootstrap, no drizzle-kit). */
+/** The schema the app expects - mirrors the Drizzle table defs (test bootstrap, no drizzle-kit). */
 const SCHEMA_DDL = `
   CREATE TABLE sales (
     id text PRIMARY KEY,

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
-/** Sale configuration — the durable definition of a Flash Sale (ADR-0004). */
+/** Sale configuration - the durable definition of a Flash Sale (ADR-0004). */
 export const saleTable = pgTable('sales', {
   id: text('id').primaryKey(),
   product: text('product').notNull(),

@@ -24,7 +24,7 @@ export class SaleLifecycleService implements OnApplicationBootstrap {
     // After a reconnect the AOF may have replayed (keys present → seed is a no-op) or the
     // instance may be fresh (keys absent → rehydrate from Ledger). seedOrRehydrate handles both.
     this._redis.on('ready', () => {
-      this._log.warn('redis ready (reconnect) — rehydrating sales');
+      this._log.warn('redis ready (reconnect) - rehydrating sales');
       void this._sales.rehydrateAll().catch((error) => this._log.error('rehydrate failed', error));
     });
   }
@@ -42,7 +42,7 @@ export class SaleLifecycleService implements OnApplicationBootstrap {
       !env.SEED_SALE_STARTS_AT ||
       !env.SEED_SALE_ENDS_AT
     ) {
-      this._log.warn(`SEED_SALE_ID=${env.SEED_SALE_ID} set but seed fields incomplete — skipping`);
+      this._log.warn(`SEED_SALE_ID=${env.SEED_SALE_ID} set but seed fields incomplete - skipping`);
 
       return;
     }

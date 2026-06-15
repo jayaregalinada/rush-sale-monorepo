@@ -3,7 +3,7 @@ import { index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { saleTable } from './sale-table';
 
 /**
- * The Ledger — append-only record of Reservations, the system of record.
+ * The Ledger - append-only record of Reservations, the system of record.
  * UNIQUE(sale_id, buyer_id) enforces One-Per-User AND makes the worker's
  * at-least-once Stream write exactly-once (ADR-0001).
  */

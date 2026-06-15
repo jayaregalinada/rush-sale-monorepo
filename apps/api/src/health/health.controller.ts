@@ -9,13 +9,13 @@ export class HealthController {
     private readonly _deps: DepHealth,
   ) {}
 
-  /** Liveness — process is up. */
+  /** Liveness - process is up. */
   @Get('health')
   live() {
     return { status: 'ok' };
   }
 
-  /** Readiness — Redis (hot path) and Postgres (durability) both reachable. */
+  /** Readiness - Redis (hot path) and Postgres (durability) both reachable. */
   @Get('ready')
   @HealthCheck()
   ready() {

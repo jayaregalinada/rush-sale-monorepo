@@ -59,7 +59,7 @@ stream the rebuild logs in the foreground).
 | 1 | **thundering-herd** | ramps to **5000 rps** for 20s | hot path holds under a spike; never oversells | `outcome_success ≤ 1000` (= initial stock) |
 | 2 | **one-per-user** | 50 buyers × 40 concurrent retries | a buyer can never hold two reservations | `outcome_success ≤ 50` (one each) |
 | 3 | **sale-window** | 20 VUs for 40s | outcome always agrees with the live window | every outcome matches `UPCOMING`/`ACTIVE`/`ENDED` |
-| 4 | **fault-redis** | 300 rps for 60s, kill Redis mid-run | fails clean during outage, recovers, no oversell | no-oversell signal holds on **every** request |
+| 4 | **fault-redis** | 300 rps for 60s, kill Redis mid-run | fails clean during outage, recovers, no oversell | `outcome_success ≤ 1000` (warm recovery) **+** every response decisive-or-clean; cold-wipe oversell ruled out by the Ledger cross-check |
 
 Override the target with env vars (they pass straight through the pnpm script):
 `BASE_URL=http://host:3000 SALE_ID=my-sale pnpm -F @rush-sale/load run herd`.
@@ -118,9 +118,12 @@ docker compose stop redis && rm -rf data/redis && docker compose up -d redis
 ```
 
 Expected: during the outage requests fail cleanly (5xx / `NOT_READY`) — `http_req_failed`
-tolerated up to 40% *for this run only* — but the no-oversell check holds on every request.
-After recovery the API rehydrates (warm from AOF, or `remaining = initial − COUNT(reservations)`
-cold from the Ledger) and `SUCCESS` resumes. The final DB cross-check above still passes.
+tolerated up to 40% *for this run only* — and every response stays decisive-or-clean (the
+`checks` threshold). On the **warm** path the in-band `outcome_success ≤ 1000` guard holds
+tightly; on a **cold** wipe a few 201s issued just before the wipe are lost (data loss, not
+oversell), so the physical no-oversell proof is the DB cross-check above, which holds on both
+paths. After recovery the API rehydrates (warm from AOF, or `remaining = initial −
+COUNT(reservations)` cold from the Ledger) and `SUCCESS` resumes.
 
 ## Tuning to your host
 

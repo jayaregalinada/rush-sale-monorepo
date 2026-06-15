@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Newer pushes to the same ref supersede in-flight runs — don't burn minutes on stale commits.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Match the runtime images (apps/*/Dockerfile use node:26-alpine).
+  NODE_VERSION: 26
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Build · Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6 # reads packageManager from package.json
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint (Biome)
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+  integration:
+    name: Integration (Testcontainers)
+    runs-on: ubuntu-latest # Docker is preinstalled, so Testcontainers boots real Redis/Postgres
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Integration tests (real Redis + Postgres)
+        run: pnpm test:int

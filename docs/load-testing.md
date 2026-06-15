@@ -56,10 +56,10 @@ stream the rebuild logs in the foreground).
 
 | # | Scenario | Load profile | Proves | Hard invariant (`abortOnFail`) |
 |---|---|---|---|---|
-| 1 | **thundering-herd** | ramps to **5000 rps** for 20s | hot path holds under a spike; never oversells | `outcome_success ≤ 1000` (= initial stock) |
-| 2 | **one-per-user** | 50 buyers × 40 concurrent retries | a buyer can never hold two reservations | `outcome_success ≤ 50` (one each) |
-| 3 | **sale-window** | 20 VUs for 40s | outcome always agrees with the live window | every outcome matches `UPCOMING`/`ACTIVE`/`ENDED` |
-| 4 | **fault-redis** | 300 rps for 60s, kill Redis mid-run | fails clean during outage, recovers, no oversell | `outcome_success ≤ 1000` (warm recovery) **+** every response decisive-or-clean; cold-wipe oversell ruled out by the Ledger cross-check |
+| 1 | **thundering-herd** | ramping-arrival-rate: **200→5000 rps** over 10s, hold 20s, drain 5s | hot path holds under a spike; never oversells | `outcome_success ≤ 1000` (= initial stock) |
+| 2 | **one-per-user** | per-vu-iterations: 50 buyers × 40 attempts each (`maxDuration 30s`) | a buyer can never hold two reservations | `outcome_success ≤ 50` (one each) |
+| 3 | **sale-window** | constant-vus: 20 VUs for 40s | outcome always agrees with the live window | every outcome matches the live `UPCOMING`/`ACTIVE`/`ENDED` phase |
+| 4 | **fault-redis** | constant-arrival-rate: 300 rps for 60s, kill Redis mid-run | fails clean during outage, recovers, no oversell | warm: `outcome_success ≤ 1000` **+** every response decisive-or-clean. Cold (`COLD_WIPE=1`): in-band guard off, no-oversell proven by the Ledger cross-check |
 
 Override the target with env vars (they pass straight through the pnpm script):
 `BASE_URL=http://host:3000 SALE_ID=my-sale pnpm -F @rush-sale/load run herd`.
@@ -109,21 +109,53 @@ Open pgweb at http://localhost:8081 (`pnpm tools:up`) to run these, and watch th
 
 ## Scenario 4 — injecting the Redis fault
 
-Run `pnpm fault-redis`, and **mid-run** kill Redis one of two ways:
+This scenario drives steady traffic, then **you kill Redis mid-run**. It proves two things:
+
+1. **During the outage** the API fails cleanly — only `5xx` / `NOT_READY`, never a garbled or
+   half-applied response.
+2. **After recovery** the system rehydrates, `SUCCESS` resumes, and **stock is never oversold**.
+
+There are two ways to kill Redis, and they test different recovery paths. Start the load, then
+run the kill command **while it's still running**.
+
+### Path A — warm restart (AOF replay)
+
+Redis restarts and replays its append-only file, so live state survives (≤1s loss window).
 
 ```bash
-docker compose restart redis                                   # AOF replays → warm recovery
-# or, to force a COLD rehydrate from the Ledger:
+pnpm load:fault-redis           # start the load, then in another shell:
+docker compose restart redis
+```
+
+The in-band no-oversell guard (`outcome_success ≤ 1000`) stays **on** and should hold tightly.
+
+### Path B — cold wipe (rehydrate from the Ledger)
+
+The Redis volume is deleted, so live state is gone. On boot the API rebuilds remaining stock
+from Postgres: `remaining = initial − COUNT(reservations)`.
+
+```bash
+pnpm load -e COLD_WIPE=1 scenarios/fault-redis.js     # start the load, then:
 docker compose stop redis && rm -rf data/redis && docker compose up -d redis
 ```
 
-Expected: during the outage requests fail cleanly (5xx / `NOT_READY`) — `http_req_failed`
-tolerated up to 40% *for this run only* — and every response stays decisive-or-clean (the
-`checks` threshold). On the **warm** path the in-band `outcome_success ≤ 1000` guard holds
-tightly; on a **cold** wipe a few 201s issued just before the wipe are lost (data loss, not
-oversell), so the physical no-oversell proof is the DB cross-check above, which holds on both
-paths. After recovery the API rehydrates (warm from AOF, or `remaining = initial −
-COUNT(reservations)` cold from the Ledger) and `SUCCESS` resumes.
+`COLD_WIPE=1` turns the in-band guard **off** — and that's deliberate. A cold wipe loses any
+`201`s that were issued but not yet drained to Postgres, so the in-band count of successes can
+tick a few *over* stock. That's **data loss, not oversell**: those buyers' reservations
+vanished with the volume; the database never recorded more rows than there was stock.
+
+### What actually proves "no oversell"
+
+The k6 in-band guard is a convenience signal. The real, tool-independent proof is the **Ledger
+cross-check** — the same SQL from [above](#the-independent-cross-check-dont-just-trust-k6):
+
+```sql
+SELECT count(*) FROM reservations WHERE sale_id = 'launch-2026';   -- ≤ initial_stock
+```
+
+This holds on **both** paths, because the database is the single source of truth for what was
+actually sold. During the outage itself, `http_req_failed` is allowed up to 40% (only for this
+run) and every response must still be decisive-or-clean (the `checks` threshold).
 
 ## Tuning to your host
 

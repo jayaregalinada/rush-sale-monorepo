@@ -4,11 +4,48 @@ A high-throughput **flash-sale** platform for a single limited-stock product. Th
 buyers contend for a small stock; the system must **never oversell** and must enforce
 **one item per user**, under spike load, within a configurable sale window.
 
-The design centre of gravity is a single **Redis atomic Gate**: one Lua script decides
+**The one idea to take away:** a single **Redis atomic Gate**. One Lua script decides
 "decrement stock if available AND this buyer has none" as one indivisible operation. Redis
 is single-threaded, so oversell and double-buys are *structurally* impossible - there is no
 race window to lose. Durability is handled off the hot path by a separate **worker** that
 drains a Redis Stream into a Postgres **Ledger** (the system of record).
+
+## Quickstart
+
+You need **Docker** (and Compose v2). One command builds and starts everything:
+
+```bash
+pnpm start            # or: docker compose --profile app up -d --build
+```
+
+Then open the storefront at **http://localhost:5173** and click **Buy**. A demo sale
+(`launch-2026`, 1000 units) is seeded automatically. To stop: `pnpm down`.
+
+> No Node or pnpm installed? Use the raw `docker compose` command above - the whole stack
+> runs in containers. Node/pnpm are only needed for [local dev](#run-for-local-development).
+
+## Table of contents
+
+- [Quickstart](#quickstart)
+- [Design choices & tradeoffs](#design-choices--tradeoffs)
+- [Architecture at a glance](#architecture-at-a-glance)
+  - [Purchase: hot path](#purchase-hot-path)
+  - [Persistence: worker drains the Stream](#persistence-worker-drains-the-stream)
+  - [Rehydration: recover live state](#rehydration-recover-live-state)
+  - [Failure modes](#failure-modes)
+- [Why this holds up](#why-this-holds-up)
+- [Scaling & bottlenecks](#scaling--bottlenecks)
+- [Stack & layout](#stack--layout)
+- [Requirements](#requirements)
+- [Run the stack (containerized)](#run-the-stack-containerized)
+- [Run for local development](#run-for-local-development)
+- [Inspect the data (admin UIs)](#inspect-the-data-admin-uis)
+- [API reference](#api-reference)
+- [Tests](#tests)
+- [Lint & format](#lint--format)
+- [Stress testing (k6)](#stress-testing-k6)
+- [Teardown](#teardown)
+- [Troubleshooting](#troubleshooting)
 
 ## Design choices & tradeoffs
 
@@ -29,6 +66,10 @@ The diagrams below show how these fit together; [**Why this holds up**](#why-thi
 [**Scaling & bottlenecks**](#scaling--bottlenecks) drill into the correctness and the ceilings.
 
 ## Architecture at a glance
+
+Four parts: the **web** SPA, a stateless **API**, **Redis** (live state + event stream), and
+**Postgres** (the durable record). A buy is decided in Redis; persistence happens afterwards,
+off the hot path.
 
 ```mermaid
 flowchart LR
@@ -66,7 +107,7 @@ flowchart LR
 - **API** and **worker** are separate processes: a DB outage stalls only the worker (events
   buffer in the Stream) while the Gate keeps serving `SUCCESS`.
 
-### Purchase - hot path
+### Purchase: hot path
 
 ```mermaid
 sequenceDiagram
@@ -99,7 +140,7 @@ No oversell + one-per-user are decided inside one Lua script. Redis being single
 means there is no race window - the event is enqueued the instant the Reservation exists,
 so there is no dual-write gap.
 
-### Persistence - worker drains the Stream
+### Persistence: worker drains the Stream
 
 ```mermaid
 sequenceDiagram
@@ -123,7 +164,7 @@ At-least-once delivery → the Ledger write must be idempotent. The natural key
 `UNIQUE(sale_id, buyer_id)` makes the write exactly-once **and** is a DB-level
 defense-in-depth backstop for one-per-user.
 
-### Rehydration - recover live state from the Ledger
+### Rehydration: recover live state
 
 ```mermaid
 sequenceDiagram
@@ -194,7 +235,7 @@ Full treatment - concurrency proof, per-tier mitigations, and a load runbook - i
 [`docs/architecture.md`](docs/architecture.md#scaling--bottlenecks) and
 [`docs/troubleshooting.md`](docs/troubleshooting.md#performance--load-symptom--bottleneck--mitigation).
 
-## Stack
+## Stack & layout
 
 TypeScript · Turborepo + pnpm · NestJS on the **Fastify** adapter · **ioredis**
 (`defineCommand` registers the Gate as a typed `EVALSHA`) · **Drizzle** + Postgres ·
@@ -210,13 +251,14 @@ apps/
 
 ## Requirements
 
-The containerized path needs only Docker; Node and pnpm are for local dev.
+The containerized path ([Quickstart](#quickstart)) needs **only Docker**. Node and pnpm are
+for the [local-dev](#run-for-local-development) path; k6 is optional.
 
 | Tool | Version | Required for |
 |---|---|---|
 | **Docker** + Compose v2 | ≥ 24 | running the whole stack (`pnpm start`) - Redis, Postgres, API, worker, web |
 | **Node.js** | ≥ 22 (developed on 26) | local (non-container) dev only |
-| **pnpm** | ≥ 10 (`10.33.2`) | workspace package manager - `npm i -g pnpm` |
+| **pnpm** | `11.6.0` (pinned via `packageManager`) | local-dev package manager - run `corepack enable` and pnpm self-selects this version |
 | **[k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)** | ≥ 0.50 | load scenarios - **optional**: only the local-binary path needs it; `pnpm load:*` runs k6 in a container |
 
 These TCP ports must be free on the host (the stack publishes them):
@@ -230,7 +272,9 @@ These TCP ports must be free on the host (the stack publishes them):
 | `8081` | pgweb - Postgres admin UI (only with `pnpm tools:up`) |
 | `8082` | redis-commander - Redis admin UI (only with `pnpm tools:up`) |
 
-## Run it - fully containerized (one command)
+## Run the stack (containerized)
+
+This is the [Quickstart](#quickstart) path, in full. One command builds and runs everything:
 
 ```bash
 pnpm start          # docker compose --profile app up -d --build  (detached)
@@ -254,7 +298,9 @@ up Redis + Postgres only.
 > not Docker-managed volumes - so it is easy to inspect and is gitignored. To wipe everything
 > and start fresh, stop the stack and `rm -rf data/`.
 
-## Run it - local dev (hot reload)
+## Run for local development
+
+For hot reload while editing code. Runs the infra in Docker and the app on your host:
 
 ```bash
 pnpm install
@@ -292,7 +338,7 @@ with `pnpm tools:down`. Useful flow: make a purchase, watch the `sale:*:stock` k
 the Stream grow in redis-commander, then see the row land in `reservations` in pgweb once the
 worker drains it.
 
-## API
+## API reference
 
 | Method | Path | Purpose |
 |---|---|---|

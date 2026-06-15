@@ -20,9 +20,9 @@ the API process or on its own.
 
 ## Considered Options
 
-- **Plain folders, no workspace tooling** — simpler, but two installs/lockfiles, no
+- **Plain folders, no workspace tooling** - simpler, but two installs/lockfiles, no
   shared config; reads less structured.
-- **Worker inside the API process** — simplest to run, but it contradicts the
+- **Worker inside the API process** - simplest to run, but it contradicts the
   fault-tolerance story (ADR-0001): a worker that lives in the API process can't keep
   buffering a DB outage independently, and can't be scaled or crash in isolation.
 

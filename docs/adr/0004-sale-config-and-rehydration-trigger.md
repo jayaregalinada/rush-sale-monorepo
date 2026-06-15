@@ -7,7 +7,7 @@ status: accepted
 ## Context
 
 The Redis Gate holds live Stock but can restart or be wiped. We need a durable home for
-sale definitions and a concrete, oversell-safe way to (re)initialise Redis — including
+sale definitions and a concrete, oversell-safe way to (re)initialise Redis - including
 the case where Redis dies while the app keeps running.
 
 ## Decision
@@ -28,7 +28,7 @@ the case where Redis dies while the app keeps running.
 
 ## Consequences
 
-- Normal Redis restarts self-heal from AOF (Stock, buyers, and Stream all return) — the
+- Normal Redis restarts self-heal from AOF (Stock, buyers, and Stream all return) - the
   Ledger Rehydration path is the catastrophic fallback only.
 - Stress test can kill Redis mid-run and observe: momentary 503s → rehydrate from Ledger
   → traffic resumes, with zero Oversell.

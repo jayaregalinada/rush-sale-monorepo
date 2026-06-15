@@ -37,8 +37,8 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN     # macOS / Linux
 ```
 
 A common culprit is a **local dev API/Redis/Postgres** already running from `pnpm infra:up`
-plus a separate `pnpm --filter @rush-sale/api dev`. Pick one path — containerized (`pnpm start`)
-**or** local dev — not both on the same ports.
+plus a separate `pnpm --filter @rush-sale/api dev`. Pick one path - containerized (`pnpm start`)
+**or** local dev - not both on the same ports.
 
 ## `curl localhost:3000` returns nothing, but the container is up
 
@@ -53,10 +53,10 @@ Browsers handle this automatically; it only bites raw `curl`/`wget`.
 
 ## Docker / Compose issues
 
-- **`docker: command not found` / daemon not running** — start Docker Desktop or OrbStack.
-- **`unknown shorthand flag: 'profile'`** — you have Compose v1. This project needs Compose
+- **`docker: command not found` / daemon not running** - start Docker Desktop or OrbStack.
+- **`unknown shorthand flag: 'profile'`** - you have Compose v1. This project needs Compose
   v2 (`docker compose`, not `docker-compose`).
-- **`corepack: not found` during an image build** — expected on Node 26; the Dockerfiles
+- **`corepack: not found` during an image build** - expected on Node 26; the Dockerfiles
   install pnpm via `npm i -g pnpm`. If you changed that line, restore it.
 
 ## The schema is missing (`relation "reservations" does not exist`)
@@ -72,10 +72,10 @@ docker compose --profile app up migrate
 
 ## API returns `NOT_READY` (503) instead of selling
 
-`NOT_READY` means the sale's stock key is absent in Redis — the Gate has not been seeded yet,
+`NOT_READY` means the sale's stock key is absent in Redis - the Gate has not been seeded yet,
 which is **not** the same as `SOLD_OUT`. Causes:
 
-- the API has not finished booting (it seeds `launch-2026` on startup) — wait and retry;
+- the API has not finished booting (it seeds `launch-2026` on startup) - wait and retry;
 - Redis was wiped while the API stayed up. Restart the API so it rehydrates from the Ledger,
   or restart the whole stack.
 
@@ -88,7 +88,7 @@ asynchronously. Check it is running and healthy:
 docker compose --profile app logs worker --tail 50
 ```
 
-If the worker is down, events stay pending in the Redis Stream (by design — the Gate keeps
+If the worker is down, events stay pending in the Redis Stream (by design - the Gate keeps
 selling) and flush once it recovers. Inspect the pending entries in redis-commander, or:
 
 ```bash
@@ -117,7 +117,7 @@ k6`, then run the scenarios from `apps/load`.
 
 The scenarios encode invariants as `abortOnFail` thresholds (e.g. `outcome_success<=1000`).
 An instant abort usually means the sale is **already sold out or fully claimed** from a
-previous run — reset state (see *Quick reset*) and re-run.
+previous run - reset state (see *Quick reset*) and re-run.
 
 ## Every purchase 500s with `WRONGTYPE` (stale Redis volume)
 
@@ -129,17 +129,17 @@ WRONGTYPE Operation against a key holding the wrong kind of value
   ... command: evalsha ... sale:<id>:buyers ...
 ```
 
-The Gate's keys have fixed Redis types — `sale:<id>:stock` is a string, `sale:<id>:buyers` is
+The Gate's keys have fixed Redis types - `sale:<id>:stock` is a string, `sale:<id>:buyers` is
 a **HASH** (buyerId → reservationId), `sale:<id>:reservations` is a **STREAM**. If an *older
 build* wrote one of these keys with a different shape (e.g. `buyers` as a SET), that value
-survives in the persisted `./data/redis` volume across a rebuild — the new code's `HGET`/`HSET`
+survives in the persisted `./data/redis` volume across a rebuild - the new code's `HGET`/`HSET`
 then collide with it. Confirm the mismatch:
 
 ```bash
 docker compose exec redis redis-cli TYPE sale:launch-2026:buyers   # expect: hash
 ```
 
-Fix by clearing the stale state — either a full reset (recommended; wipes the volume) or an
+Fix by clearing the stale state - either a full reset (recommended; wipes the volume) or an
 in-place flush + re-seed:
 
 ```bash
@@ -149,7 +149,7 @@ docker compose exec redis redis-cli FLUSHALL
 docker compose restart api worker                  # re-seeds the Gate from the Ledger on boot
 ```
 
-Reset between runs as a habit — it guarantees no cross-version key shape lingers.
+Reset between runs as a habit - it guarantees no cross-version key shape lingers.
 
 ## Performance & load: symptom → bottleneck → mitigation
 
@@ -160,10 +160,10 @@ A runbook for behaviour under stress. The architecture's scaling levers are in
 |---|---|---|
 | Buy latency climbs under load, Redis CPU near 100% | single Redis thread saturated | scale Redis vertically (faster box); for many concurrent sales, shard by `saleId` across Redis Cluster |
 | Postgres rows lag far behind successful buys | worker drain rate < arrival rate | add worker replicas (competing consumers); raise `BATCH`; check Postgres write throughput |
-| Redis memory growing during a long, hot sale | Stream never trimmed — acked entries linger | `XTRIM sale:{id}:reservations MINID <id>` after the backlog drains, or add approx `MAXLEN` to `XADD` |
-| API replicas at high CPU, Redis fine | API tier under-provisioned | add API replicas behind the proxy (stateless — safe to scale freely) |
+| Redis memory growing during a long, hot sale | Stream never trimmed - acked entries linger | `XTRIM sale:{id}:reservations MINID <id>` after the backlog drains, or add approx `MAXLEN` to `XADD` |
+| API replicas at high CPU, Redis fine | API tier under-provisioned | add API replicas behind the proxy (stateless - safe to scale freely) |
 | Random/bogus sale ids spike DB reads | negative cache too small or churning | raise `UNKNOWN_SALE_CACHE_CAPACITY`; front the edge with per-IP rate limiting |
-| Many `503 NOT_READY` right after deploy | sales not seeded yet on a fresh node | expected during boot — node rehydrates from the Ledger; gate traffic until `/ready` passes |
+| Many `503 NOT_READY` right after deploy | sales not seeded yet on a fresh node | expected during boot - node rehydrates from the Ledger; gate traffic until `/ready` passes |
 
 **Measure before you tune.** Inspect the live pressure points:
 
@@ -181,7 +181,7 @@ k6 run apps/load/scenarios/thundering-herd.js
 ```
 
 A growing **pending** count (not just `XLEN`) is the true backpressure signal: it means the
-worker is behind, *not* that selling is at risk — the Gate is unaffected.
+worker is behind, *not* that selling is at risk - the Gate is unaffected.
 
 ## `pnpm lint` reports unexpected errors
 

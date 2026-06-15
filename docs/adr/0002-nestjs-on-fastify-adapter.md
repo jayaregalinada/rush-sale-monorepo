@@ -21,6 +21,6 @@ named module so it is not buried under framework boilerplate.
 
 ## Consequences
 
-- Slightly less conventional than Nest-on-Express; a couple of plugins differ — accepted
+- Slightly less conventional than Nest-on-Express; a couple of plugins differ - accepted
   for the throughput and the explicit-trade-off signal.
 - Keep the Gate logic in its own small module to stay legible.
